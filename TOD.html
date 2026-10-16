@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Truth or Dare Generator 🎲</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, sans-serif; }
+  
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    color: #fff;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 600px;
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 24px;
+    padding: 30px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    margin-bottom: 8px;
+    background: linear-gradient(90deg, #f093fb, #f5576c, #feca57);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .subtitle {
+    text-align: center;
+    color: #aaa;
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+  }
+
+  /* Pilih Pemain */
+  .player-section {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  input[type="text"] {
+    flex: 1;
+    padding: 14px 18px;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+    font-size: 1rem;
+    outline: none;
+    transition: 0.3s;
+  }
+
+  input[type="text"]:focus {
+    border-color: #f5576c;
+    background: rgba(255,255,255,0.12);
+  }
+
+  input[type="text"]::placeholder { color: #888; }
+
+  .btn-add {
+    padding: 14px 20px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+
+  .btn-add:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(102,126,234,0.4); }
+
+  /* Daftar Pemain */
+  .players-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 20px;
+    min-height: 10px;
+  }
+
+  .player-chip {
+    background: rgba(255,255,255,0.1);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: 1px solid rgba(255,255,255,0.1);
+    animation: popIn 0.3s ease;
+  }
+
+  .player-chip.active {
+    background: linear-gradient(135deg, #f093fb, #f5576c);
+    border-color: transparent;
+    box-shadow: 0 0 20px rgba(245,87,108,0.5);
+    transform: scale(1.05);
+  }
+
+  .player-chip .remove {
+    cursor: pointer;
+    color: #ff6b6b;
+    font-weight: bold;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  @keyframes popIn {
+    from { transform: scale(0.5); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  /* Section Label */
+  .section-label {
+    font-size: 0.85rem;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 10px;
+    font-weight: 600;
+  }
+
+  /* Pilih Kategori */
+  .category-group, .level-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .cat-btn, .lvl-btn {
+    padding: 14px 8px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    color: #ccc;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    text-align: center;
+  }
+
+  .cat-btn:hover, .lvl-btn:hover {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+  }
+
+  .cat-btn.active {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 5px 20px rgba(102,126,234,0.4);
+  }
+
+  .lvl-btn.active {
+    background: linear-gradient(135deg, #f5576c, #f093fb);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 5px 20px rgba(245,87,108,0.4);
+  }
+
+  .lvl-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+
+  /* Kartu Utama */
+  .card {
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), rgba(255,255,255,0.03));
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 20px;
+    padding: 40px 24px;
+    text-align: center;
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    transition: 0.4s;
+  }
+
+  .card.truth { border-color: #4facfe; box-shadow: 0 0 40px rgba(79,172,254,0.3); }
+  .card.dare { border-color: #f5576c; box-shadow: 0 0 40px rgba(245,87,108,0.3); }
+
+  .card-type {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    padding: 6px 16px;
+    border-radius: 20px;
+    display: inline-block;
+  }
+
+  .card.truth .card-type { background: rgba(79,172,254,0.2); color: #4facfe; }
+  .card.dare .card-type { background: rgba(245,87,108,0.2); color: #f5576c; }
+
+  .card-content {
+    font-size: 1.25rem;
+    line-height: 1.6;
+    font-weight: 500;
+    animation: fadeIn 0.5s ease;
+  }
+
+  .card-player {
+    margin-top: 20px;
+    font-size: 0.95rem;
+    color: #feca57;
+    font-weight: 600;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .placeholder {
+    color: #666;
+    font-style: italic;
+    font-size: 1rem;
+  }
+
+  /* Timer */
+  .timer {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: #feca57;
+    margin-top: 16px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .timer.warning { color: #ff6b6b; animation: pulse 1s infinite; }
+
+  @keyframes pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+  }
+
+  /* Tombol Aksi */
+  .action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .btn-action {
+    padding: 18px;
+    border: none;
+    border-radius: 14px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.3s;
+    color: #fff;
+  }
+
+  .btn-truth {
+    background: linear-gradient(135deg, #4facfe, #00f2fe);
+  }
+
+  .btn-dare {
+    background: linear-gradient(135deg, #f5576c, #f093fb);
+  }
+
+  .btn-action:hover { transform: translateY(-3px); filter: brightness(1.1); }
+  .btn-action:active { transform: translateY(0); }
+  .btn-action:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+  .btn-secondary {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 12px;
+    background: rgba(255,255,255,0.05);
+    color: #ccc;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-bottom: 8px;
+  }
+
+  .btn-secondary:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+  /* Stats */
+  .stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    font-size: 0.85rem;
+    color: #888;
+  }
+
+  .stats span { color: #feca57; font-weight: 700; }
+
+  /* Empty state */
+  .empty-hint {
+    text-align: center;
+    color: #666;
+    font-size: 0.85rem;
+    font-style: italic;
+    margin-bottom: 12px;
+  }
+
+  @media (max-width: 480px) {
+    .container { padding: 20px; }
+    h1 { font-size: 1.6rem; }
+    .card { padding: 30px 18px; min-height: 180px; }
+    .card-content { font-size: 1.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>🎲 Truth or Dare</h1>
+  <p class="subtitle">Generator pertanyaan & tantangan</p>
+
+  <!-- Input Pemain -->
+  <div class="section-label">👥 Pemain</div>
+  <div class="player-section">
+    <input type="text" id="playerInput" placeholder="Nama pemain..." maxlength="20">
+    <button class="btn-add" id="addPlayerBtn">+ Tambah</button>
+  </div>
+  <div class="players-list" id="playersList"></div>
+  <p class="empty-hint" id="emptyHint">Belum ada pemain. Tambahkan minimal 1 orang.</p>
+
+  <!-- Kategori -->
+  <div class="section-label">📂 Kategori</div>
+  <div class="category-group" id="categoryGroup">
+    <button class="cat-btn active" data-cat="teman">👫 Teman</button>
+    <button class="cat-btn" data-cat="couple">💕 Couple</button>
+    <button class="cat-btn" data-cat="keluarga">👨‍👩‍👧 Keluarga</button>
+  </div>
+
+  <!-- Level -->
+  <div class="section-label">⚡ Level</div>
+  <div class="level-group" id="levelGroup">
+    <button class="lvl-btn active" data-lvl="ringan">🌱 Ringan</button>
+    <button class="lvl-btn" data-lvl="sedang">🔥 Sedang</button>
+    <button class="lvl-btn" data-lvl="ekstrem">💀 Ekstrem</button>
+  </div>
+
+  <!-- Kartu -->
+  <div class="card" id="card">
+    <div class="placeholder" id="cardPlaceholder">Tekan Truth atau Dare untuk mulai 🎯</div>
+    <div id="cardBody" style="display:none;">
+      <div class="card-type" id="cardType"></div>
+      <div class="card-content" id="cardContent"></div>
+      <div class="card-player" id="cardPlayer"></div>
+      <div class="timer" id="timer" style="display:none;"></div>
+    </div>
+  </div>
+
+  <!-- Tombol Aksi -->
+  <div class="action-buttons">
+    <button class="btn-action btn-truth" id="truthBtn">💙 Truth</button>
+    <button class="btn-action btn-dare" id="dareBtn">❤️ Dare</button>
+  </div>
+
+  <button class="btn-secondary" id="spinBtn">🎡 Spin Pemain Random</button>
+  <button class="btn-secondary" id="resetBtn">🔄 Reset Semua</button>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div>Truth: <span id="statTruth">0</span></div>
+    <div>Dare: <span id="statDare">0</span></div>
+    <div>Skip: <span id="statSkip">0</span></div>
+  </div>
+</div>
+
+<script>
+/* ================== DATA ================== */
+const data = {
+  teman: {
+    ringan: {
+      truth: [
+        "Siapa orang yang paling terakhir kamu chat dan kenapa?",
+        "Apa hal paling memalukan yang pernah kamu lakuin di depan umum?",
+        "Sebutkan 3 hal yang kamu gak suka dari dirimu sendiri.",
+        "Kapan terakhir kali kamu nangis dan kenapa?",
+        "Apa kebiasaan aneh yang kamu punya saat sendirian?",
+        "Siapa yang paling sering kamu stalk di media sosial?",
+        "Apa makanan yang kamu gak akan pernah mau makan lagi?",
+        "Pernah gak kamu pura-pura sibuk biar gak diajak ngobrol? Sama siapa?",
+        "Apa aplikasi yang paling sering kamu buka tiap hari?",
+        "Ceritain kejadian paling cringe yang pernah kamu alami."
+      ],
+      dare: [
+        "Kirim pesan 'aku kangen' ke orang random di kontakmu.",
+        "Tiruin gaya bicara salah satu teman yang ada di sini selama 1 menit.",
+        "Nyanyiin lagu anak-anak dengan penuh penghayatan.",
+        "Foto selfie dengan ekspresi paling jelek, tunjukin ke semua orang.",
+        "Video call seseorang dan katakan 'aku cuma mau lihat kamu' lalu tutup.",
+        "Bikin pantun dadakan tentang orang di sebelahmu.",
+        "Tiruin suara hewan selama 30 detik tanpa berhenti.",
+        "Post story dengan tulisan 'aku lagi galau' tanpa penjelasan.",
+        "Kirim chat ke gebetan dengan tulisan 'lagi apa?' lalu diemin 5 menit.",
+        "Joget tanpa musik selama 1 menit."
+      ]
+    },
+    sedang: {
+      truth: [
+        "Siapa orang yang pernah kamu bohongi dan sampai sekarang belum ngaku?",
+        "Apa rahasia yang belum pernah kamu ceritain ke siapa pun di sini?",
+        "Pernah gak kamu suka sama pacar temanmu sendiri?",
+        "Apa hal paling nekat yang pernah kamu lakuin karena cinta?",
+        "Siapa orang yang paling kamu benci tapi pura-pura baik?",
+        "Kapan terakhir kali kamu nangis karena seseorang di ruangan ini?",
+        "Apa penyesalan terbesar dalam hidupmu?",
+        "Pernah gak kamu baca chat orang lain tanpa izin?",
+        "Siapa temanmu yang menurutmu paling fake?",
+        "Apa hal yang kamu sembunyiin dari orang tuamu?"
+      ],
+      dare: [
+        "Telepon seseorang dan nyanyiin lagu ulang tahun walau bukan ultahnya.",
+        "Tunjukin foto terakhir di galeri HP-mu ke semua orang.",
+        "Baca chat terakhir dengan seseorang di sini dengan suara keras.",
+        "Kirim DM ke 3 orang dengan tulisan 'kamu keren' tanpa penjelasan.",
+        "Tiruin mantan kamu di depan semua orang.",
+        "Video call seseorang dan bilang 'aku suka kamu' lalu tutup.",
+        "Ceritain kejadian memalukanmu sambil joget.",
+        "Tukar baju dengan orang di sebelahmu selama 3 ronde.",
+        "Telepon orang tuamu dan bilang 'aku sayang kalian' tanpa alasan.",
+        "Update status dengan tulisan 'aku jomblo' selama 1 jam."
+      ]
+    },
+    ekstrem: {
+      truth: [
+        "Siapa orang di ruangan ini yang pernah kamu fantasikan?",
+        "Apa hal paling intim yang pernah kamu lakuin?",
+        "Pernah gak kamu selingkuh atau jadi pihak ketiga?",
+        "Apa rahasia paling gelap yang kamu simpan dari semua orang?",
+        "Siapa yang paling kamu ingin cium di ruangan ini?",
+        "Pernah gak kamu bohong soal perasaanmu ke seseorang? Ceritain.",
+        "Apa hal paling gila yang pernah kamu lakuin saat mabuk?",
+        "Pernah gak kamu baca chat mantan dan nangis? Kapan?",
+        "Siapa orang yang paling kamu sesali pernah deketin?",
+        "Apa hal yang kamu lakuin diam-diam yang gak akan kamu akui di depan orang tua?"
+      ],
+      dare: [
+        "Tunjukkan history pencarian terakhir di HP-mu ke semua orang.",
+        "Kirim pesan ke mantan dengan tulisan 'aku masih mikirin kamu'.",
+        "Baca chat paling memalukan di HP-mu dengan suara lantang.",
+        "Bikin video TikTok joget dan posting.",
+        "Telepon seseorang dan ungkapin perasaanmu yang sebenarnya.",
+        "Tunjukin DM terakhir di Instagram ke semua orang.",
+        "Nyanyiin lagu cinta ke orang di sebelahmu sambil tatap mata.",
+        "Kirim foto selfie tanpa filter ke grup keluarga.",
+        "Post story dengan tulisan 'aku lagi cari jodoh' selama 1 jam.",
+        "Ceritain rahasia paling gelapmu ke orang yang baru kamu kenal."
+      ]
+    }
+  },
+  couple: {
+    ringan: {
+      truth: [
+        "Apa hal pertama yang kamu suka dari pasanganmu?",
+        "Kapan kamu sadar kalau kamu jatuh cinta?",
+        "Apa kebiasaan pasanganmu yang bikin kamu gemas?",
+        "Lagu apa yang mengingatkanmu pada pasanganmu?",
+        "Apa kencan paling berkesan yang pernah kalian lakuin?",
+        "Kalau bisa mengulang satu momen, momen apa yang kamu pilih?",
+        "Apa panggilan sayang yang paling kamu suka?",
+        "Apa hal kecil yang pasanganmu lakuin yang bikin kamu bahagia?",
+        "Apa rencana masa depan yang paling kamu tunggu bareng dia?",
+        "Apa hal yang paling kamu kagumi dari pasanganmu?"
+      ],
+      dare: [
+        "Peluk pasanganmu selama 30 detik tanpa ngomong.",
+        "Bisikin sesuatu yang manis ke telinga pasanganmu.",
+        "Nyanyiin lagu cinta ke pasanganmu.",
+        "Tatap mata pasanganmu selama 1 menit tanpa tertawa.",
+        "Tulis pesan cinta di kertas dan kasih ke pasanganmu.",
+        "Cium kening pasanganmu sambil bilang 'aku sayang kamu'.",
+        "Tiruin kebiasaan pasanganmu yang paling kamu suka.",
+        "Puji pasanganmu 5 kali berturut-turut tanpa berhenti.",
+        "Bikin janji kecil yang akan kamu tepati minggu ini.",
+        "Foto berdua dengan pose paling lucu."
+      ]
+    },
+    sedang: {
+      truth: [
+        "Apa hal dari pasanganmu yang pengen kamu ubah tapi gak berani bilang?",
+        "Pernah gak kamu bohong ke pasanganmu? Soal apa?",
+        "Siapa mantan yang masih kamu pikirin sesekali?",
+        "Apa hal yang paling kamu takutin dari hubungan ini?",
+        "Kapan terakhir kali kamu ngerasa jauh dari pasanganmu?",
+        "Apa hal yang belum pernah kamu ceritain ke pasanganmu?",
+        "Pernah gak kamu ngerasa cemburu ke seseorang? Siapa?",
+        "Apa arti cinta buat kamu sekarang?",
+        "Kalau pasanganmu bisa baca pikiranmu sekarang, apa yang dia akan tahu?",
+        "Apa yang bikin kamu bertahan sampai sekarang?"
+      ],
+      dare: [
+        "Telepon pasanganmu dan bilang 'aku kangen kamu' di depan semua orang.",
+        "Post foto berdua dengan caption romantis.",
+        "Baca chat pertama kalian berdua dengan suara lantang.",
+        "Tiruin cara pasanganmu marah.",
+        "Kirim voice note lagu cinta ke pasanganmu.",
+        "Ceritain ke semua orang 3 hal yang kamu suka dari pasanganmu.",
+        "Duduk di pangkuan pasanganmu selama 3 ronde.",
+        "Bikin puisi dadakan buat pasanganmu.",
+        "Telepon pasanganmu dan bilang 'aku pengen ketemu sekarang'.",
+        "Tukar HP dengan pasanganmu selama 5 menit."
+      ]
+    },
+    ekstrem: {
+      truth: [
+        "Apa fantasi yang belum pernah kamu ceritain ke pasanganmu?",
+        "Pernah gak kamu mikirin orang lain saat bersama pasanganmu?",
+        "Apa hal paling intim yang pernah kalian lakuin?",
+        "Pernah gak kamu ngerasa pengen putus? Kapan?",
+        "Apa rahasia yang kamu sembunyiin dari pasanganmu?",
+        "Siapa orang yang paling bikin kamu tergoda selain pasanganmu?",
+        "Apa hal dari pasanganmu yang bikin kamu frustrasi?",
+        "Kalau bisa jujur 100%, apa yang pengen kamu bilang ke pasanganmu?",
+        "Pernah gak kamu bohong soal masa lalu ke pasanganmu?",
+        "Apa yang paling kamu takutin kalau hubungan ini berakhir?"
+      ],
+      dare: [
+        "Kirim pesan ke mantanmu di depan pasanganmu.",
+        "Tunjukin semua chat di HP-mu ke pasanganmu.",
+        "Ceritain fantasi terdalammu ke pasanganmu.",
+        "Baca chat dengan orang lain yang paling sensitif.",
+        "Post foto mesra dengan pasanganmu.",
+        "Telepon seseorang dan bilang kamu lagi bareng pasanganmu.",
+        "Ungkapin satu rahasia yang belum pernah kamu ceritain ke pasanganmu.",
+        "Bikin video romantis berdua dan posting.",
+        "Biarkan pasanganmu buka satu aplikasi pilihan di HP-mu.",
+        "Bilang 'aku cinta kamu' 10 kali dengan cara berbeda."
+      ]
+    }
+  },
+  keluarga: {
+    ringan: {
+      truth: [
+        "Siapa anggota keluarga yang paling kamu kagumi dan kenapa?",
+        "Apa tradisi keluarga yang paling kamu suka?",
+        "Makanan masakan siapa yang paling kamu rindukan?",
+        "Apa kenangan masa kecil paling indah bersama keluarga?",
+        "Kalau bisa liburan ke mana saja sama keluarga, mau ke mana?",
+        "Apa hal yang paling kamu syukuri dari keluargamu?",
+        "Siapa yang paling sering bikin kamu ketawa di rumah?",
+        "Apa nasihat orang tua yang selalu kamu ingat?",
+        "Apa hal yang pengen kamu lakuin bareng keluarga tahun ini?",
+        "Ceritain momen paling lucu yang pernah terjadi di rumah."
+      ],
+      dare: [
+        "Peluk semua anggota keluargamu satu per satu.",
+        "Bilang 'aku sayang kalian' ke setiap orang di ruangan ini.",
+        "Nyanyiin lagu kesukaan keluargamu.",
+        "Bikin puisi tentang keluargamu.",
+        "Bantu pekerjaan rumah selama 5 menit sekarang.",
+        "Telepon anggota keluarga yang gak ada di sini dan bilang kangen.",
+        "Tiruin kebiasaan salah satu anggota keluargamu.",
+        "Puji setiap orang di ruangan ini satu per satu.",
+        "Foto keluarga dengan pose paling lucu.",
+        "Ceritain kenangan favoritmu tentang keluargamu."
+      ]
+    },
+    sedang: {
+      truth: [
+        "Apa hal yang pengen kamu ubah dari kebiasaan keluargamu?",
+        "Pernah gak kamu bohong ke orang tuamu? Soal apa?",
+        "Apa hal yang belum pernah kamu ceritain ke keluargamu?",
+        "Siapa yang paling kamu takutin di keluarga?",
+        "Apa hal yang bikin kamu bangga jadi bagian keluarga ini?",
+        "Kapan terakhir kali kamu nangis karena keluarga?",
+        "Apa hal yang pengen kamu minta maaf dari keluargamu?",
+        "Apa yang pengen kamu bilang ke orang tuamu tapi gak berani?",
+        "Apa harapan terbesar kamu untuk keluargamu?",
+        "Kalau bisa mengubah satu keputusan keluarga, apa itu?"
+      ],
+      dare: [
+        "Telepon anggota keluarga dan bilang 'aku bangga punya kamu'.",
+        "Bikin video ucapan terima kasih untuk keluargamu.",
+        "Tulis surat pendek untuk orang tuamu dan bacain.",
+        "Masak atau bikin minuman untuk semua orang di ruangan ini.",
+        "Ceritain rahasia kecil yang belum pernah kamu bilang ke keluarga.",
+        "Pijitin pundak orang tuamu selama 2 menit.",
+        "Ucapin terima kasih ke setiap orang satu per satu dengan alasan.",
+        "Bikin pantun tentang keluargamu.",
+        "Foto bareng keluarga dan posting dengan caption manis.",
+        "Bilang 'maaf' ke seseorang di keluarga yang pernah kamu sakiti."
+      ]
+    },
+    ekstrem: {
+      truth: [
+        "Apa rahasia keluarga yang belum pernah dibahas terbuka?",
+        "Apa hal yang paling kamu sesali soal keluargamu?",
+        "Pernah gak kamu ngerasa pengen kabur dari rumah? Kapan?",
+        "Apa hal yang kamu sembunyiin dari orang tuamu sampai sekarang?",
+        "Siapa anggota keluarga yang hubungannya paling rumit denganmu?",
+        "Apa hal dari orang tuamu yang pengen kamu ubah?",
+        "Kapan terakhir kali kamu bohong besar ke keluargamu?",
+        "Apa yang paling kamu takutin soal masa depan keluargamu?",
+        "Pernah gak kamu iri sama keluarga orang lain? Kenapa?",
+        "Apa hal yang belum kamu maafkan dari keluargamu?"
+      ],
+      dare: [
+        "Telepon orang tuamu dan bilang semua yang pengen kamu bilang.",
+        "Tunjukin satu hal yang selama ini kamu sembunyiin dari keluargamu.",
+        "Ceritain satu rahasia besar yang belum pernah kamu buka ke keluarga.",
+        "Bikin video permintaan maaf untuk keluargamu dan posting.",
+        "Bilang 'aku minta maaf' ke setiap orang di ruangan ini dengan alasan.",
+        "Telepon anggota keluarga yang paling jarang kamu hubungi dan ngobrol 5 menit.",
+        "Tulis surat panjang untuk orang tuamu dan bacain di depan semua.",
+        "Ungkapin satu hal yang selama ini bikin kamu sakit hati.",
+        "Post foto keluarga dengan caption jujur tentang perasaanmu.",
+        "Bilang satu hal yang belum pernah kamu akui ke keluargamu."
+      ]
+    }
+  }
+};
+
+/* ================== STATE ================== */
+let state = {
+  players: [],
+  activePlayer: null,
+  category: 'teman',
+  level: 'ringan',
+  stats: { truth: 0, dare: 0, skip: 0 },
+  timerInterval: null,
+  timeLeft: 0
+};
+
+/* ================== DOM ================== */
+const $ = id => document.getElementById(id);
+const playerInput = $('playerInput');
+const addPlayerBtn = $('addPlayerBtn');
+const playersList = $('playersList');
+const emptyHint = $('emptyHint');
+const categoryGroup = $('categoryGroup');
+const levelGroup = $('levelGroup');
+const card = $('card');
+const cardPlaceholder = $('cardPlaceholder');
+const cardBody = $('cardBody');
+const cardType = $('cardType');
+const cardContent = $('cardContent');
+const cardPlayer = $('cardPlayer');
+const timerEl = $('timer');
+const truthBtn = $('truthBtn');
+const dareBtn = $('dareBtn');
+const spinBtn = $('spinBtn');
+const resetBtn = $('resetBtn');
+const statTruth = $('statTruth');
+const statDare = $('statDare');
+const statSkip = $('statSkip');
+
+/* ================== FUNGSI ================== */
+function addPlayer() {
+  const name = playerInput.value.trim();
+  if (!name) return;
+  if (state.players.includes(name)) {
+    alert('Nama sudah ada!');
+    return;
+  }
+  state.players.push(name);
+  playerInput.value = '';
+  renderPlayers();
+}
+
+function removePlayer(name) {
+  state.players = state.players.filter(p => p !== name);
+  if (state.activePlayer === name) state.activePlayer = null;
+  renderPlayers();
+}
+
+function renderPlayers() {
+  playersList.innerHTML = '';
+  state.players.forEach(name => {
+    const chip = document.createElement('div');
+    chip.className = 'player-chip' + (state.activePlayer === name ? ' active' : '');
+    chip.innerHTML = `<span>${name}</span><span class="remove" data-name="${name}">×</span>`;
+    playersList.appendChild(chip);
+  });
+  emptyHint.style.display = state.players.length ? 'none' : 'block';
+  updateButtons();
+}
+
+function updateButtons() {
+  const hasPlayer = state.players.length > 0;
+  truthBtn.disabled = !hasPlayer;
+  dareBtn.disabled = !hasPlayer;
+  spinBtn.disabled = !hasPlayer;
+}
+
+function spinPlayer() {
+  if (!state.players.length) return;
+  let count = 0;
+  const maxCount = 15 + Math.floor(Math.random() * 10);
+  const interval = setInterval(() => {
+    const random = state.players[Math.floor(Math.random() * state.players.length)];
+    state.activePlayer = random;
+    renderPlayers();
+    count++;
+    if (count >= maxCount) {
+      clearInterval(interval);
+    }
+  }, 100);
+}
+
+function pickRandom(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function getContent(type) {
+  const cat = data[state.category];
+  const lvl = cat[state.level] || cat.ringan;
+  const pool = lvl[type];
+  return pickRandom(pool);
+}
+
+function startTimer(seconds) {
+  clearInterval(state.timerInterval);
+  state.timeLeft = seconds;
+  timerEl.style.display = 'block';
+  timerEl.classList.remove('warning');
+  updateTimerDisplay();
+
+  state.timerInterval = setInterval(() => {
+    state.timeLeft--;
+    updateTimerDisplay();
+    if (state.timeLeft <= 5) timerEl.classList.add('warning');
+    if (state.timeLeft <= 0) {
+      clearInterval(state.timerInterval);
+      timerEl.textContent = '⏰ Waktu habis!';
+    }
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const m = Math.floor(state.timeLeft / 60);
+  const s = state.timeLeft % 60;
+  timerEl.textContent = `⏱️ ${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
+}
+
+function showCard(type) {
+  if (!state.activePlayer) {
+    // auto pilih pemain random kalau belum ada
+    state.activePlayer = state.players[Math.floor(Math.random() * state.players.length)];
+    renderPlayers();
+  }
+
+  const content = getContent(type);
+
+  cardPlaceholder.style.display = 'none';
+  cardBody.style.display = 'block';
+  cardType.textContent = type === 'truth' ? '💙 Truth' : '❤️ Dare';
+  cardContent.textContent = content;
+  cardPlayer.textContent = `👉 ${state.activePlayer}`;
+
+  card.classList.remove('truth', 'dare');
+  card.classList.add(type);
+
+  // update stats
+  state.stats[type]++;
+  statTruth.textContent = state.stats.truth;
+  statDare.textContent = state.stats.dare;
+
+  // timer hanya untuk dare
+  if (type === 'dare') {
+    startTimer(30);
+  } else {
+    clearInterval(state.timerInterval);
+    timerEl.style.display = 'none';
+  }
+
+  // animasi ulang
+  cardContent.style.animation = 'none';
+  void cardContent.offsetWidth;
+  cardContent.style.animation = 'fadeIn 0.5s ease';
+}
+
+function resetAll() {
+  if (!confirm('Yakin mau reset semua? Pemain dan skor akan hilang.')) return;
+  clearInterval(state.timerInterval);
+  state = {
+    players: [],
+    activePlayer: null,
+    category: 'teman',
+    level: 'ringan',
+    stats: { truth: 0, dare: 0, skip: 0 },
+    timerInterval: null,
+    timeLeft: 0
+  };
+  statTruth.textContent = 0;
+  statDare.textContent = 0;
+  statSkip.textContent = 0;
+  cardPlaceholder.style.display = 'block';
+  cardBody.style.display = 'none';
+  card.classList.remove('truth', 'dare');
+  timerEl.style.display = 'none';
+
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b.dataset.cat === 'teman'));
+  document.querySelectorAll('.lvl-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lvl === 'ringan');
+    b.disabled = false;
+  });
+  renderPlayers();
+}
+
+function updateLevelAvailability() {
+  const isKeluarga = state.category === 'keluarga';
+  document.querySelectorAll('.lvl-btn').forEach(btn => {
+    if (btn.dataset.lvl === 'ekstrem') {
+      btn.disabled = isKeluarga;
+      if (isKeluarga && state.level === 'ekstrem') {
+        state.level = 'sedang';
+        document.querySelectorAll('.lvl-btn').forEach(b => b.classList.toggle('active', b.dataset.lvl === 'sedang'));
+      }
+    }
+  });
+}
+
+/* ================== EVENT ================== */
+addPlayerBtn.addEventListener('click', addPlayer);
+playerInput.addEventListener('keypress', e => { if (e.key === 'Enter') addPlayer(); });
+
+playersList.addEventListener('click', e => {
+  if (e.target.classList.contains('remove')) {
+    removePlayer(e.target.dataset.name);
+  }
+});
+
+categoryGroup.addEventListener('click', e => {
+  const btn = e.target.closest('.cat-btn');
+  if (!btn) return;
+  state.category = btn.dataset.cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.toggle('active', b === btn));
+  updateLevelAvailability();
+});
+
+levelGroup.addEventListener('click', e => {
+  const btn = e.target.closest('.lvl-btn');
+  if (!btn || btn.disabled) return;
+  state.level = btn.dataset.lvl;
+  document.querySelectorAll('.lvl-btn').forEach(b => b.classList.toggle('active', b === btn));
+});
+
+truthBtn.addEventListener('click', () => showCard('truth'));
+dareBtn.addEventListener('click', () => showCard('dare'));
+spinBtn.addEventListener('click', spinPlayer);
+resetBtn.addEventListener('click', resetAll);
+
+/* ================== INIT ================== */
+renderPlayers();
+updateButtons();
+</script>
+</body>
+</html>
