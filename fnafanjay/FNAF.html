@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FNAF Lite - Final Fix 🐻</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; user-select: none; }
+  body { background: #000; color: #fff; height: 100vh; overflow: hidden; display: flex; justify-content: center; align-items: center; cursor: crosshair; }
+  #game { width: 100vw; height: 100vh; position: relative; overflow: hidden; background: #0a0a0a; }
+
+  .noise { position: absolute; inset: 0; pointer-events: none; opacity: 0.08; z-index: 100; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' /%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); animation: noiseShift 0.1s steps(2) infinite; }
+  @keyframes noiseShift { 0% { transform: translate(0, 0); } 100% { transform: translate(-5%, -5%); } }
+  .vignette { position: absolute; inset: 0; pointer-events: none; z-index: 50; background: radial-gradient(ellipse at center, transparent 20%, rgba(0,0,0,0.95) 100%); }
+  .flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; z-index: 999; transition: opacity 0.1s; }
+  .flash.active { opacity: 1; }
+
+  /* OFFICE */
+  .office { position: absolute; inset: 0; background: linear-gradient(180deg, #1a0f08 0%, #0d0805 50%, #050302 100%); display: flex; justify-content: center; align-items: flex-end; overflow: hidden; transition: background 0.5s; }
+  .office.dark { background: #000; }
+  .wall { position: absolute; inset: 0; background: linear-gradient(180deg, transparent 60%, rgba(20,10,5,0.8) 100%), repeating-linear-gradient(90deg, transparent 0px, transparent 80px, rgba(0,0,0,0.2) 80px, rgba(0,0,0,0.2) 82px); }
+  .desk { position: absolute; bottom: 0; left: 0; right: 0; height: 25%; background: linear-gradient(180deg, #2a1810 0%, #1a0f08 100%); border-top: 4px solid #3a2418; box-shadow: inset 0 10px 30px rgba(0,0,0,0.8); z-index: 5; }
+  
+  .monitor { position: absolute; bottom: 22%; left: 50%; transform: translateX(-50%); width: 120px; height: 90px; background: #0a0a0a; border: 4px solid #1a1a1a; border-radius: 6px; box-shadow: 0 0 20px rgba(0,255,100,0.1); z-index: 6; display: flex; justify-content: center; align-items: center; color: #0f0; font-size: 0.7rem; text-shadow: 0 0 5px #0f0; }
+  .fan { position: absolute; bottom: 24%; right: 15%; width: 60px; height: 60px; z-index: 6; animation: fanSpin 0.5s linear infinite; }
+  .fan::before { content: '✻'; position: absolute; font-size: 60px; color: #333; text-shadow: 0 0 10px rgba(255,255,255,0.1); }
+  @keyframes fanSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* PINTU & LAMPU */
+  .door-frame { position: absolute; top: 0; bottom: 25%; width: 22%; background: linear-gradient(180deg, #0a0503 0%, #050201 100%); border: 3px solid #1a0f08; z-index: 4; }
+  .door-frame.left { left: 0; }
+  .door-frame.right { right: 0; }
+  .door { position: absolute; inset: 0; background: linear-gradient(180deg, #3a2418 0%, #2a1810 100%); border: 2px solid #4a3424; transition: transform 0.3s ease; z-index: 5; }
+  .door.closed { transform: translateX(0); }
+  .door.open { transform: translateX(-100%); }
+  .door-frame.right .door.open { transform: translateX(100%); }
+
+  /* POP-UP GAMBAR DI LORONG */
+  .hallway-popup { position: absolute; top: 15%; width: 25%; height: 60%; display: none; justify-content: center; align-items: center; z-index: 8; pointer-events: none; }
+  .hallway-popup.left { left: 2%; }
+  .hallway-popup.right { right: 2%; }
+  .hallway-popup.active { display: flex; }
+  .hallway-popup img { width: 100%; height: 100%; object-fit: contain; filter: brightness(1.5) contrast(1.2) drop-shadow(0 0 20px rgba(255,0,0,0.8)); animation: glitchImg 0.2s infinite; }
+  @keyframes glitchImg { 0% { transform: translate(0,0); } 50% { transform: translate(-2px, 1px); } 100% { transform: translate(1px, -1px); } }
+
+  /* SCENE FREDDY POWER OUT */
+  .freddy-powerout { position: absolute; top: 0; bottom: 25%; left: 0; width: 22%; display: none; justify-content: center; align-items: center; z-index: 4; }
+  .freddy-powerout.active { display: flex; }
+  .freddy-powerout img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.1) contrast(2); }
+  .freddy-eyes { position: absolute; top: 30%; display: flex; gap: 30px; z-index: 10; animation: eyeBlink 1s infinite; }
+  .freddy-eye { width: 20px; height: 20px; background: #ff0000; border-radius: 50%; box-shadow: 0 0 30px #ff0000, 0 0 60px #ff0000; }
+  @keyframes eyeBlink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+  .door-btn, .light-btn { position: absolute; width: 50px; height: 50px; background: #1a1a1a; border: 3px solid #444; border-radius: 8px; cursor: pointer; z-index: 10; display: flex; justify-content: center; align-items: center; font-size: 1.5rem; transition: 0.2s; box-shadow: 0 0 15px rgba(0,0,0,0.8); }
+  .door-btn.active { background: #ff3333; border-color: #ff6666; box-shadow: 0 0 25px rgba(255,50,50,0.8); }
+  .light-btn.active { background: #ffff88; border-color: #ffffaa; box-shadow: 0 0 25px rgba(255,255,150,0.8); }
+  .door-btn.left { left: 2%; top: 20%; }
+  .door-btn.right { right: 2%; top: 20%; }
+  .light-btn.left { left: 2%; top: 35%; }
+  .light-btn.right { right: 2%; top: 35%; }
+
+  /* HUD */
+  .hud { position: absolute; top: 20px; left: 20px; right: 20px; display: flex; justify-content: space-between; align-items: center; z-index: 200; font-size: 1.1rem; font-weight: 700; text-shadow: 0 0 10px rgba(0,0,0,0.9); pointer-events: none; }
+  .hud-power { color: #4ade80; display: flex; align-items: center; gap: 8px; }
+  .hud-power.low { color: #ffaa00; }
+  .hud-power.critical { color: #ff3333; animation: blink 0.5s infinite; }
+  @keyframes blink { 50% { opacity: 0.3; } }
+  .hud-time { color: #fff; font-size: 1.4rem; }
+  .hud-night { color: #fbbf24; font-size: 0.9rem; text-align: right; }
+  .power-bar-container { position: absolute; top: 60px; left: 20px; width: 200px; height: 12px; background: rgba(0,0,0,0.7); border: 1px solid rgba(74,222,128,0.4); border-radius: 6px; overflow: hidden; z-index: 200; }
+  .power-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #4ade80, #22c55e); transition: width 0.5s linear; }
+  .power-bar.low { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+  .power-bar.critical { background: linear-gradient(90deg, #ff3333, #cc0000); }
+
+  /* DEBUG TEXT */
+  .debug-text { position: absolute; bottom: 5px; left: 5px; font-size: 0.6rem; color: #0f0; z-index: 999; background: rgba(0,0,0,0.5); padding: 2px 5px; display: none; }
+
+  /* CCTV */
+  .cctv-overlay { position: absolute; inset: 0; background: #000; z-index: 150; display: none; flex-direction: column; justify-content: space-between; padding: 20px; background-image: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.03) 2px, rgba(255,255,255,0.03) 4px); }
+  .cctv-overlay.active { display: flex; }
+  .map-container { position: absolute; top: 60px; left: 40px; width: 250px; height: 180px; border: 2px solid #333; background: #050505; z-index: 10; padding: 10px; font-size: 0.7rem; color: #888; }
+  .map-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; height: 100%; }
+  .map-room { border: 1px solid #222; padding: 5px; text-align: center; display: flex; flex-direction: column; justify-content: center; align-items: center; position: relative; }
+  .map-room.active { border-color: #fff; color: #fff; background: rgba(255,255,255,0.1); }
+  .cam-feed { position: absolute; inset: 40px 40px 140px 300px; background: #111; border: 2px solid #333; border-radius: 8px; display: flex; justify-content: center; align-items: center; overflow: hidden; box-shadow: inset 0 0 50px rgba(0,0,0,1); }
+  .cam-feed img { width: 100%; height: 100%; object-fit: cover; opacity: 0.7; filter: grayscale(60%) contrast(120%) brightness(0.8); animation: staticAnim 0.15s infinite; }
+  @keyframes staticAnim { 0% { transform: translate(0,0); } 50% { transform: translate(-2px, 1px); } 100% { transform: translate(1px, -1px); } }
+  .cam-label { position: absolute; top: 20px; left: 300px; color: #fff; font-size: 1.2rem; font-weight: bold; text-shadow: 1px 1px 2px #000; z-index: 5; }
+  .cam-rec { position: absolute; top: 20px; right: 40px; color: #ff3333; font-size: 1.2rem; font-weight: bold; animation: blink 1s infinite; z-index: 5; display: flex; align-items: center; gap: 8px; }
+  .cam-rec::before { content: ''; width: 12px; height: 12px; background: #ff3333; border-radius: 50%; }
+  .cam-btn-grid { position: absolute; bottom: 20px; left: 20px; right: 20px; display: grid; grid-template-columns: repeat(6, 1fr); gap: 10px; z-index: 5; }
+  .cam-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.3); color: #fff; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.8rem; transition: 0.2s; }
+  .cam-btn.active { background: #fff; color: #000; }
+  .cctv-toggle-btn { position: absolute; bottom: 2%; left: 50%; transform: translateX(-50%); width: 200px; height: 40px; background: #222; border: 2px solid #555; color: #fff; border-radius: 8px; cursor: pointer; z-index: 10; font-weight: bold; letter-spacing: 2px; transition: 0.2s; font-family: inherit; }
+
+  /* WARNING & JUMPSCARE */
+  .warning-overlay { position: absolute; inset: 0; background: rgba(255,0,0,0.3); z-index: 900; display: none; pointer-events: none; animation: pulseRed 0.2s infinite; }
+  .warning-overlay.active { display: block; }
+  @keyframes pulseRed { 0% { opacity: 0.2; } 50% { opacity: 0.6; } 100% { opacity: 0.2; } }
+  .jumpscare { position: absolute; inset: 0; background: #000; display: none; justify-content: center; align-items: center; z-index: 1000; }
+  .jumpscare.active { display: flex; }
+  .jumpscare img { width: 120%; height: 120%; object-fit: cover; animation: jumpShake 0.05s infinite; }
+  @keyframes jumpShake { 0% { transform: translate(0, 0) scale(1.1) rotate(0deg); filter: brightness(1); } 25% { transform: translate(-15px, 10px) scale(1.2) rotate(-3deg); filter: brightness(2); } 50% { transform: translate(15px, -10px) scale(1.2) rotate(3deg); filter: brightness(1); } 75% { transform: translate(-10px, -15px) scale(1.1) rotate(-2deg); filter: brightness(3); } 100% { transform: translate(10px, 15px) scale(1.2) rotate(2deg); filter: brightness(1); } }
+
+  /* SCREENS & PHONE */
+  .screen { position: absolute; inset: 0; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 500; text-align: center; padding: 20px; }
+  .screen.hidden { display: none; }
+  .screen h1 { font-size: 2.5rem; margin-bottom: 20px; color: #fbbf24; text-shadow: 0 0 20px rgba(251,191,36,0.6); letter-spacing: 4px; }
+  .screen p { color: #aaa; margin-bottom: 20px; font-size: 1rem; line-height: 1.6; max-width: 500px; }
+  .screen button { padding: 14px 32px; font-size: 1rem; font-weight: 700; font-family: inherit; background: linear-gradient(135deg, #7f1d1d, #991b1b); color: #fff; border: 2px solid #dc2626; border-radius: 8px; cursor: pointer; margin: 6px; transition: 0.2s; letter-spacing: 2px; text-transform: uppercase; }
+  .screen button:hover { background: linear-gradient(135deg, #991b1b, #dc2626); transform: scale(1.05); box-shadow: 0 0 25px rgba(220,38,38,0.5); }
+  .screen button.secondary { background: transparent; border-color: #555; color: #aaa; }
+  .screen button.secondary:hover { background: rgba(255,255,255,0.05); border-color: #888; color: #fff; }
+
+  .difficulty-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 20px 0; max-width: 400px; }
+  .diff-card { padding: 16px; background: rgba(255,255,255,0.05); border: 2px solid rgba(255,255,255,0.15); border-radius: 10px; cursor: pointer; transition: 0.2s; }
+  .diff-card:hover, .diff-card.selected { border-color: #dc2626; background: rgba(220,38,38,0.2); }
+  .diff-card h3 { font-size: 1rem; margin-bottom: 4px; color: #fbbf24; }
+  .diff-card p { font-size: 0.75rem; color: #888; margin: 0; }
+
+  .phone-guy { position: absolute; bottom: 10%; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); border: 1px solid #333; padding: 15px 20px; border-radius: 10px; color: #4ade80; font-family: monospace; font-size: 0.9rem; z-index: 300; display: none; max-width: 600px; text-align: center; box-shadow: 0 0 20px rgba(0,0,0,0.9); }
+  .phone-guy.active { display: block; animation: slideInUp 0.5s ease; }
+  @keyframes slideInUp { from { opacity: 0; transform: translate(-50%, 20px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+  @media (max-width: 768px) {
+    .map-container { width: 150px; height: 120px; left: 20px; }
+    .cam-feed { left: 180px; }
+    .cam-label { left: 180px; }
+    .cam-btn-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div id="game">
+  <div class="noise"></div>
+
+  <div class="office" id="officeView">
+    <div class="wall"></div>
+    
+    <!-- FREDDY POWER OUT SCENE -->
+    <div class="freddy-powerout" id="freddyPowerOut">
+      <img src="freddy.jpg" alt="Freddy">
+      <div class="freddy-eyes">
+        <div class="freddy-eye"></div>
+        <div class="freddy-eye"></div>
+      </div>
+    </div>
+
+    <!-- POP-UP GAMBAR DI LORONG -->
+    <div class="hallway-popup left" id="popupLeft">
+      <img id="popupImgLeft" src="">
+    </div>
+    <div class="hallway-popup right" id="popupRight">
+      <img id="popupImgRight" src="">
+    </div>
+
+    <div class="door-frame left"><div class="door open" id="doorLeft"></div></div>
+    <div class="door-frame right"><div class="door open" id="doorRight"></div></div>
+
+    <div class="desk"></div>
+    <div class="monitor" id="monitorText">CAM<br>OFF</div>
+    <div class="fan"></div>
+
+    <div class="door-btn left" id="doorBtnLeft" title="Tutup pintu kiri (A)">🚪</div>
+    <div class="door-btn right" id="doorBtnRight" title="Tutup pintu kanan (D)">🚪</div>
+    <div class="light-btn left" id="lightBtnLeft" title="Lampu kiri (Q)">💡</div>
+    <div class="light-btn right" id="lightBtnRight" title="Lampu kanan (E)">💡</div>
+
+    <button class="cctv-toggle-btn" id="cctvToggleBtn">📹 CCTV (S)</button>
+  </div>
+
+  <div class="warning-overlay" id="warningOverlay"></div>
+
+  <!-- CCTV -->
+  <div class="cctv-overlay" id="cctvOverlay">
+    <div class="map-container">
+      <div style="margin-bottom:5px; color:#fff; font-weight:bold;">DENAH RESTORAN</div>
+      <div class="map-grid">
+        <div class="map-room" id="map-1C">Pirate Cove<br>1C</div>
+        <div class="map-room" id="map-1B">Dining<br>1B</div>
+        <div class="map-room" id="map-2A">W. Hall<br>2A</div>
+        <div class="map-room" id="map-1A">Show Stage<br>1A</div>
+        <div class="map-room" id="map-4A">E. Hall<br>4A</div>
+        <div class="map-room" id="map-2B">W. Corner<br>2B</div>
+        <div class="map-room" id="map-7">Restroom<br>7</div>
+        <div class="map-room" id="map-4B">E. Corner<br>4B</div>
+      </div>
+    </div>
+    <div class="cam-feed">
+      <div class="cam-label" id="camLabel">CAM 1A - Show Stage</div>
+      <div class="cam-rec">REC</div>
+      <img id="camImg" src="" style="display:none;">
+      <div id="camText" style="color:#aaa; font-size: 2rem; font-weight: bold;">NO SIGNAL</div>
+    </div>
+    <div class="cam-btn-grid" id="camBtnGrid"></div>
+  </div>
+
+  <div class="vignette"></div>
+  <div class="flash" id="flash"></div>
+
+  <div class="hud">
+    <div class="hud-power" id="hudPower">⚡ <span id="powerText">100%</span></div>
+    <div class="hud-time" id="hudTime">12 AM</div>
+    <div class="hud-night">NIGHT<br><span id="nightText">1</span></div>
+  </div>
+  <div class="power-bar-container"><div class="power-bar" id="powerBar"></div></div>
+  
+  <div class="debug-text" id="debugText"></div>
+  <div class="jumpscare" id="jumpscare"><img id="jumpscareImg" src=""></div>
+
+  <audio id="toreadorAudio" src="toreador.mp3" preload="auto"></audio>
+
+  <div class="phone-guy" id="phoneGuy">
+    <div style="color:#888; font-size:0.7rem; margin-bottom:5px;">📞 INCOMING CALL</div>
+    <div id="phoneText"></div>
+  </div>
+
+  <!-- SCREENS -->
+  <div class="screen" id="startScreen">
+    <h1>FNAF LITE</h1>
+    <p>Kamu adalah penjaga malam.<br>Bertahan sampai jam 6 pagi.<br><br>
+    <strong>Tips:</strong> Kalau denger suara ketukan, langsung tahan lampu (Q/E) dan tutup pintu!</p>
+    <button id="startBtn">MULAI MALAM 1</button>
+  </div>
+
+  <div class="screen hidden" id="diffScreen">
+    <h1>PILIH KESULITAN</h1>
+    <div class="difficulty-grid">
+      <div class="diff-card" data-diff="easy"><h3>😌 EASY</h3><p>Santai.</p></div>
+      <div class="diff-card selected" data-diff="normal"><h3>😐 NORMAL</h3><p>Pengalaman standar.</p></div>
+      <div class="diff-card" data-diff="hard"><h3>😰 HARD</h3><p>Animatronik agresif.</p></div>
+      <div class="diff-card" data-diff="nightmare"><h3>💀 NIGHTMARE</h3><p>Hampir mustahil.</p></div>
+    </div>
+    <button id="diffConfirmBtn">KONFIRMASI</button>
+    <button class="secondary" id="diffBackBtn">KEMBALI</button>
+  </div>
+
+  <div class="screen hidden" id="gameOverScreen">
+    <h1 style="color:#dc2626;">GAME OVER</h1>
+    <p id="gameOverText">Kamu tidak bertahan sampai pagi...</p>
+    <button id="retryBtn">COBA LAGI</button>
+    <button class="secondary" id="backToMenuBtn">MENU UTAMA</button>
+  </div>
+
+  <div class="screen hidden" id="winScreen">
+    <h1 style="color:#4ade80;">6 AM</h1>
+    <p id="winText">Kamu selamat!</p>
+    <button id="nextNightBtn">LANJUT MALAM BERIKUTNYA</button>
+  </div>
+
+  <div class="screen hidden" id="finalWinScreen">
+    <h1 style="color:#fbbf24;">🏆 SELAMAT!</h1>
+    <p>Kamu menyelesaikan kelima malam.<br>Kamu resmi menjadi penjaga malam terbaik! 🎉</p>
+    <button id="playAgainBtn">MAIN LAGI</button>
+  </div>
+
+</div>
+
+<script>
+/* ==================== AUDIO ENGINE ==================== */
+let audioCtx = null;
+let heartbeatInterval = null;
+let soundTimeout = {};
+
+function initAudio() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+}
+
+function playTone(freq, duration, type = 'sine', vol = 0.1) {
+  if (!audioCtx) return;
+  const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+  osc.type = type; osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + duration);
+}
+
+function playNoise(duration, vol = 0.05) {
+  if (!audioCtx) return;
+  const bufferSize = audioCtx.sampleRate * duration;
+  const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
+  const source = audioCtx.createBufferSource(); source.buffer = buffer;
+  const gain = audioCtx.createGain(); gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  source.connect(gain); gain.connect(audioCtx.destination); source.start();
+}
+
+// SIGNATURE SOUNDS
+function sfxDoor() { playTone(80, 0.3, 'sawtooth', 0.15); playNoise(0.3, 0.08); }
+function sfxLight() { playTone(800, 0.1, 'square', 0.05); }
+function sfxHourChange() { playTone(660, 0.2, 'sine', 0.1); setTimeout(() => playTone(880, 0.3, 'sine', 0.1), 200); }
+function sfxJumpscare() { playNoise(1.5, 0.4); playTone(60, 1.5, 'sawtooth', 0.4); playTone(80, 1.5, 'square', 0.3); }
+function sfxPowerOut() { playTone(200, 1.5, 'sine', 0.15); setTimeout(() => playTone(100, 1.5, 'sine', 0.15), 200); }
+
+function soundBonnie() { playTone(60, 0.2, 'square', 0.3); setTimeout(() => playTone(60, 0.2, 'square', 0.3), 400); setTimeout(() => playTone(60, 0.2, 'square', 0.3), 800); }
+function soundChica() { playTone(900, 0.05, 'square', 0.15); setTimeout(() => playTone(900, 0.05, 'square', 0.15), 100); setTimeout(() => playTone(900, 0.05, 'square', 0.15), 200); setTimeout(() => playTone(900, 0.05, 'square', 0.15), 300); }
+function soundFreddy() { playTone(40, 1.5, 'sawtooth', 0.2); playNoise(1.0, 0.05); }
+function soundFoxy() { playTone(600, 0.8, 'sawtooth', 0.15); playNoise(0.8, 0.1); }
+
+function startHeartbeat() {
+  if (heartbeatInterval) clearInterval(heartbeatInterval);
+  heartbeatInterval = setInterval(() => {
+    if (!state.gameActive || state.jumpscareActive || state.powerOutState) return;
+    let intensity = 0.05;
+    if (state.animatronics.bonnie.atDoor || state.animatronics.chica.atDoor || state.animatronics.foxy.atDoor) intensity = 0.2;
+    if (state.animatronics.freddy.atDoor) intensity = 0.3;
+    playTone(60, 0.15, 'sine', intensity);
+    setTimeout(() => playTone(50, 0.15, 'sine', intensity * 0.8), 150);
+  }, 1000);
+}
+
+/* ==================== STATE & CONFIG ==================== */
+const state = {
+  night: 1, difficulty: 'normal', hour: 0, power: 100,
+  doorLeftClosed: false, doorRightClosed: false, lightLeftOn: false, lightRightOn: false,
+  gameActive: false, secondsPerHour: 45, hourTimer: 0,
+  animatronics: {}, jumpscareActive: false, cctvOpen: false, cctvCam: '1A',
+  doorDelay: { bonnie: 0, chica: 0, freddy: 0, foxy: 0 },
+  powerOutState: false
+};
+
+const DIFFICULTY_CONFIG = {
+  easy:      { aggression: 0.6, foxySpeed: 0.5, powerDrainMultiplier: 0.8 },
+  normal:    { aggression: 1.0, foxySpeed: 1.0, powerDrainMultiplier: 1.0 },
+  hard:      { aggression: 1.5, foxySpeed: 1.7, powerDrainMultiplier: 1.2 },
+  nightmare: { aggression: 2.2, foxySpeed: 2.5, powerDrainMultiplier: 1.4 }
+};
+
+const PATHS = {
+  bonnie: ['stage', 'dining', 'west_hall', 'west_corner', 'left_door'],
+  chica:  ['stage', 'dining', 'east_hall', 'east_corner', 'right_door'],
+  freddy: ['stage', 'dining', 'restroom', 'kitchen', 'east_hall', 'east_corner', 'right_door'],
+  foxy:   ['cove', 'cove', 'cove', 'west_hall', 'running']
+};
+
+const CAM_NAMES = { '1A': 'Show Stage', '1B': 'Dining Area', '1C': 'Pirate Cove', '2A': 'West Hall', '2B': 'W. Hall Corner', '3': 'Supply Closet', '4A': 'East Hall', '4B': 'E. Hall Corner', '5': 'Backstage', '6': 'Kitchen', '7': 'Restrooms' };
+const CAM_MAP = { 'stage': '1A', 'dining': '1B', 'cove': '1C', 'west_hall': '2A', 'west_corner': '2B', 'supply': '3', 'east_hall': '4A', 'east_corner': '4B', 'backstage': '5', 'kitchen': '6', 'restroom': '7' };
+
+function createAnimatronics() {
+  return {
+    bonnie: { name: 'Bonnie', img: 'Bonnie.jpg', pathIdx: 0, moveTimer: 0, moveInterval: 5.0, atDoor: false },
+    chica:  { name: 'Chica',  img: 'chica.jpg',  pathIdx: 0, moveTimer: 0, moveInterval: 5.5, atDoor: false },
+    freddy: { name: 'Freddy', img: 'freddy.jpg', pathIdx: 0, moveTimer: 0, moveInterval: 6.5, atDoor: false },
+    foxy:   { name: 'Foxy',   img: 'Foxy.jpg',   pathIdx: 0, moveTimer: 0, moveInterval: 8.0, atDoor: false, hasBeenRepelled: false }
+  };
+}
+
+/* ==================== DOM ==================== */
+const $ = id => document.getElementById(id);
+const officeView = $('officeView'), powerText = $('powerText'), powerBar = $('powerBar'), hudTime = $('hudTime'), hudPower = $('hudPower');
+const doorLeft = $('doorLeft'), doorRight = $('doorRight');
+const doorBtnLeft = $('doorBtnLeft'), doorBtnRight = $('doorBtnRight');
+const lightBtnLeft = $('lightBtnLeft'), lightBtnRight = $('lightBtnRight');
+const popupLeft = $('popupLeft'), popupRight = $('popupRight');
+const popupImgLeft = $('popupImgLeft'), popupImgRight = $('popupImgRight');
+const jumpscareEl = $('jumpscare'), jumpscareImg = $('jumpscareImg'), flash = $('flash');
+const cctvOverlay = $('cctvOverlay'), cctvToggleBtn = $('cctvToggleBtn');
+const camLabel = $('camLabel'), camImg = $('camImg'), camText = $('camText');
+const warningOverlay = $('warningOverlay'), freddyPowerOut = $('freddyPowerOut');
+const debugText = $('debugText'), toreadorAudio = $('toreadorAudio');
+
+/* ==================== CORE LOGIC ==================== */
+function calculatePowerDrain() {
+  if (state.powerOutState) return 0;
+  let drain = 0.08 + (state.night - 1) * 0.015;
+  if (state.doorLeftClosed) drain += 0.18;
+  if (state.doorRightClosed) drain += 0.18;
+  if (state.lightLeftOn) drain += 0.10;
+  if (state.lightRightOn) drain += 0.10;
+  if (state.cctvOpen) drain += 0.05;
+  return drain * DIFFICULTY_CONFIG[state.difficulty].powerDrainMultiplier;
+}
+
+function updateAnimatronics(dt) {
+  if (state.powerOutState) return;
+  const cfg = DIFFICULTY_CONFIG[state.difficulty];
+  const nightMultiplier = 1 + (state.night - 1) * 0.15;
+
+  const bonnie = state.animatronics.bonnie;
+  bonnie.moveTimer += dt;
+  if (bonnie.moveTimer >= (bonnie.moveInterval / (cfg.aggression * nightMultiplier))) {
+    bonnie.moveTimer = 0;
+    if (Math.random() < 0.7 && bonnie.pathIdx < PATHS.bonnie.length - 1) bonnie.pathIdx++;
+  }
+  bonnie.atDoor = PATHS.bonnie[bonnie.pathIdx] === 'left_door';
+
+  const chica = state.animatronics.chica;
+  chica.moveTimer += dt;
+  if (chica.moveTimer >= (chica.moveInterval / (cfg.aggression * nightMultiplier))) {
+    chica.moveTimer = 0;
+    if (Math.random() < 0.7 && chica.pathIdx < PATHS.chica.length - 1) chica.pathIdx++;
+  }
+  chica.atDoor = PATHS.chica[chica.pathIdx] === 'right_door';
+
+  const freddy = state.animatronics.freddy;
+  freddy.moveTimer += dt;
+  if (freddy.moveTimer >= (freddy.moveInterval / (cfg.aggression * nightMultiplier))) {
+    freddy.moveTimer = 0;
+    if (Math.random() < 0.55 && freddy.pathIdx < PATHS.freddy.length - 1) freddy.pathIdx++;
+  }
+  freddy.atDoor = PATHS.freddy[freddy.pathIdx] === 'right_door';
+
+  // FOXY LOGIC (DIPERBAIKI)
+  const foxy = state.animatronics.foxy;
+  foxy.moveTimer += dt;
+  
+  if (foxy.atDoor) {
+    // Kalau Foxy udah di pintu, dia nunggu. Kalau pintu DITUTUP, dia balik ke cove.
+    if (state.doorLeftClosed) {
+      if (!foxy.hasBeenRepelled) {
+        foxy.pathIdx = 0; 
+        foxy.atDoor = false;
+        foxy.hasBeenRepelled = true; // Biar ga nge-loop
+        playNoise(0.5, 0.1); // Suara decit pintu
+        setTimeout(() => { foxy.hasBeenRepelled = false; }, 1000);
+      }
+    }
+  } else {
+    // Kalau lagi di cove (ngumpet), jalankan timer pergerakan
+    if (foxy.moveTimer >= (foxy.moveInterval / (cfg.foxySpeed * nightMultiplier))) {
+      foxy.moveTimer = 0;
+      if (Math.random() < 0.5 && foxy.pathIdx < 3) {
+        foxy.pathIdx++;
+      } else if (foxy.pathIdx === 3) {
+        // Foxy Lari! (Tahap 4)
+        foxy.pathIdx = 4; foxy.atDoor = true; soundFoxy();
+        warningOverlay.classList.add('active');
+        setTimeout(() => warningOverlay.classList.remove('active'), 1000);
+      }
+    }
+  }
+
+  handleDoorDelay(dt);
+}
+
+function handleDoorDelay(dt) {
+  const triggerSound = (anim, soundFunc) => {
+    const key = anim.name.toLowerCase();
+    if (!soundTimeout[key]) soundTimeout[key] = 0;
+    soundTimeout[key] += dt;
+    if (soundTimeout[key] > 1.0) { soundFunc(); soundTimeout[key] = 0; }
+  };
+
+  const checkDelay = (anim, doorClosed, soundFunc) => {
+    if (anim.atDoor) {
+      if (!doorClosed) {
+        state.doorDelay[anim.name.toLowerCase()] = (state.doorDelay[anim.name.toLowerCase()] || 0) + dt;
+        triggerSound(anim, soundFunc);
+        if (state.doorDelay[anim.name.toLowerCase()] > 2.5) triggerJumpscare(anim.name.toLowerCase());
+      } else {
+        state.doorDelay[anim.name.toLowerCase()] = 0;
+        if (Math.random() < 0.3) anim.pathIdx = Math.max(0, anim.pathIdx - 2);
+      }
+    } else {
+      state.doorDelay[anim.name.toLowerCase()] = 0;
+      soundTimeout[anim.name.toLowerCase()] = 0;
+    }
+  };
+
+  checkDelay(state.animatronics.bonnie, state.doorLeftClosed, soundBonnie);
+  checkDelay(state.animatronics.chica, state.doorRightClosed, soundChica);
+  checkDelay(state.animatronics.freddy, state.doorRightClosed, soundFreddy);
+  checkDelay(state.animatronics.foxy, state.doorLeftClosed, soundFoxy);
+}
+
+function triggerJumpscare(who) {
+  if (state.jumpscareActive) return;
+  state.jumpscareActive = true; state.gameActive = false;
+  if (state.cctvOpen) toggleCCTV();
+  
+  jumpscareImg.src = state.animatronics[who].img;
+  jumpscareEl.classList.add('active');
+  flash.classList.add('active'); sfxJumpscare();
+
+  let blinkCount = 0;
+  const blinkInt = setInterval(() => {
+    flash.classList.toggle('active'); blinkCount++;
+    if (blinkCount > 10) { clearInterval(blinkInt); flash.classList.remove('active'); }
+  }, 80);
+
+  setTimeout(() => {
+    jumpscareEl.classList.remove('active');
+    $('gameOverText').textContent = `${state.animatronics[who].name} menangkapmu di Malam ${state.night}.`;
+    $('gameOverScreen').classList.remove('hidden');
+  }, 2000);
+}
+
+function powerOut() {
+  state.gameActive = false;
+  state.powerOutState = true;
+  sfxPowerOut();
+  
+  // BUG FIX: Paksa CCTV ketutup secara DOM
+  state.cctvOpen = false;
+  cctvOverlay.classList.remove('active');
+  cctvToggleBtn.textContent = '📹 CCTV (S)';
+  
+  officeView.classList.add('dark');
+  $('monitorText').innerHTML = '';
+  setDoorLeft(false); setDoorRight(false); setLightLeft(false); setLightRight(false);
+  
+  setTimeout(() => {
+    freddyPowerOut.classList.add('active');
+    
+    // Nyalain lagu MP3 full
+    toreadorAudio.volume = 0.5;
+    toreadorAudio.currentTime = 0;
+    toreadorAudio.play().catch(e => console.log("Lagu ga muter, pastikan ada file toreador.mp3"));
+    
+    // Jumpscare pas lagu abis
+    toreadorAudio.onended = () => {
+      freddyPowerOut.classList.remove('active');
+      triggerJumpscare('freddy');
+    };
+    
+    // Fallback kalau lagu gagal load / gak ada file
+    setTimeout(() => {
+      if (!state.jumpscareActive && toreadorAudio.paused) {
+        freddyPowerOut.classList.remove('active');
+        triggerJumpscare('freddy');
+      }
+    }, 5000);
+    
+  }, 2000);
+}
+
+/* ==================== CONTROLS ==================== */
+function setDoorLeft(closed) { state.doorLeftClosed = closed; doorLeft.classList.toggle('open', !closed); doorLeft.classList.toggle('closed', closed); doorBtnLeft.classList.toggle('active', closed); if (!state.powerOutState) sfxDoor(); }
+function setDoorRight(closed) { state.doorRightClosed = closed; doorRight.classList.toggle('open', !closed); doorRight.classList.toggle('closed', closed); doorBtnRight.classList.toggle('active', closed); if (!state.powerOutState) sfxDoor(); }
+function setLightLeft(on) { state.lightLeftOn = on; lightBtnLeft.classList.toggle('active', on); if (on) sfxLight(); updatePeek(); }
+function setLightRight(on) { state.lightRightOn = on; lightBtnRight.classList.toggle('active', on); if (on) sfxLight(); updatePeek(); }
+
+function updatePeek() {
+  debugText.style.display = 'block';
+  let debugMsg = "";
+
+  if (state.lightLeftOn) {
+    if (state.animatronics.bonnie.atDoor) { 
+      popupImgLeft.src = state.animatronics.bonnie.img; popupLeft.classList.add('active'); 
+      debugMsg += "Bonnie di Kiri! ";
+    } else if (state.animatronics.foxy.atDoor) { 
+      popupImgLeft.src = state.animatronics.foxy.img; popupLeft.classList.add('active'); 
+      debugMsg += "Foxy di Kiri! ";
+    } else { 
+      popupLeft.classList.remove('active'); 
+      debugMsg += "Kiri Kosong. ";
+    }
+  } else { popupLeft.classList.remove('active'); }
+
+  if (state.lightRightOn) {
+    if (state.animatronics.chica.atDoor) { 
+      popupImgRight.src = state.animatronics.chica.img; popupRight.classList.add('active'); 
+      debugMsg += "Chica di Kanan! ";
+    } else if (state.animatronics.freddy.atDoor) { 
+      popupImgRight.src = state.animatronics.freddy.img; popupRight.classList.add('active'); 
+      debugMsg += "Freddy di Kanan! ";
+    } else { 
+      popupRight.classList.remove('active'); 
+      debugMsg += "Kanan Kosong.";
+    }
+  } else { popupRight.classList.remove('active'); }
+
+  debugText.textContent = debugMsg;
+}
+
+/* ==================== CCTV & MAP ==================== */
+function initCCTV() {
+  const btns = ['1A', '1B', '1C', '2A', '2B', '3', '4A', '4B', '5', '6', '7'];
+  $('camBtnGrid').innerHTML = btns.map(b => `<button class="cam-btn" data-cam="${b}">CAM ${b}</button>`).join('');
+  
+  document.querySelectorAll('.cam-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.cam-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      state.cctvCam = btn.dataset.cam;
+      updateCCTVFeed();
+    });
+  });
+  document.querySelector('.cam-btn').classList.add('active');
+}
+
+function toggleCCTV() {
+  if (state.powerOutState) return;
+  state.cctvOpen = !state.cctvOpen;
+  cctvOverlay.classList.toggle('active', state.cctvOpen);
+  cctvToggleBtn.textContent = state.cctvOpen ? '❌ TUTUP CCTV (S)' : '📹 CCTV (S)';
+  $('monitorText').innerHTML = state.cctvOpen ? 'CAM<br>ON' : 'CAM<br>OFF';
+  if (state.cctvOpen) updateCCTVFeed();
+}
+
+function updateCCTVFeed() {
+  camLabel.textContent = `CAM ${state.cctvCam} - ${CAM_NAMES[state.cctvCam]}`;
+  camText.style.display = 'none'; camImg.style.display = 'none';
+  
+  document.querySelectorAll('.map-room').forEach(el => el.classList.remove('active'));
+  const mapEl = document.getElementById(`map-${state.cctvCam}`);
+  if (mapEl) mapEl.classList.add('active');
+
+  if (state.cctvCam === '1C') {
+    const foxy = state.animatronics.foxy;
+    if (foxy.pathIdx === 0) { camText.textContent = '[ TIRAI TERTUTUP ]'; camText.style.display = 'block'; }
+    else if (foxy.pathIdx === 1) { camImg.src = foxy.img; camImg.style.display = 'block'; camImg.style.opacity = '0.3'; camText.textContent = '[ TIRAI TERBUKA SEDIKIT ]'; camText.style.display = 'block'; }
+    else if (foxy.pathIdx === 2) { camImg.src = foxy.img; camImg.style.display = 'block'; camImg.style.opacity = '0.8'; camText.textContent = '[ TIRAI TERBUKA LEBAR! ]'; camText.style.display = 'block'; }
+    else { camText.textContent = '[ KOSONG - FOXY LARI! ]'; camText.style.display = 'block'; }
+    return;
+  }
+
+  if (state.cctvCam === '6') { camText.textContent = 'AUDIO ONLY'; camText.style.display = 'block'; playNoise(0.5, 0.05); return; }
+
+  let found = null;
+  for (let key in state.animatronics) {
+    if (key === 'foxy') continue;
+    const a = state.animatronics[key];
+    const currentRoom = PATHS[key][a.pathIdx];
+    if (CAM_MAP[currentRoom] === state.cctvCam) { found = a; break; }
+  }
+
+  if (found) {
+    camImg.src = found.img; camImg.style.display = 'block';
+    camImg.style.filter = 'grayscale(50%) contrast(120%) brightness(0.8)';
+  } else {
+    camText.textContent = '[ RUANGAN KOSONG ]'; camText.style.display = 'block';
+  }
+}
+
+/* ==================== PHONE GUY & GAME LOOP ==================== */
+const phoneScripts = [
+  "Hello? Hello? Ah, selamat datang. Cek CCTV untuk lihat mereka, dan tutup pintu kalau mereka udah di depan.",
+  "Dengerin suaranya. Bonnie ketukannya berat, Chica nyaring. Kalau denger dengung, itu Freddy.",
+  "Ingat Foxy di Pirate Cove? Kalau tirai udah kebuka lebar, siap-siap tutup pintu kiri.",
+  "Malam ini sepertinya aman. Tapi... waspadalah pada kelinci di sebelah kiri.",
+  "Kamu berhasil! Besok malam mereka bakal lebih aktif. Selamat pagi!"
+];
+
+function playPhoneGuy() {
+  const script = phoneScripts[Math.min(state.night - 1, phoneScripts.length - 1)];
+  $('phoneGuy').classList.add('active'); $('phoneText').textContent = ""; let i = 0;
+  playTone(800, 0.2, 'square', 0.05);
+  const typeInt = setInterval(() => {
+    $('phoneText').textContent += script.charAt(i);
+    if (i % 3 === 0) playTone(400 + Math.random()*200, 0.05, 'square', 0.02);
+    i++;
+    if (i >= script.length) { clearInterval(typeInt); setTimeout(() => $('phoneGuy').classList.remove('active'), 4000); }
+  }, 50);
+}
+
+function updateHUD() {
+  powerText.textContent = Math.max(0, Math.floor(state.power)) + '%';
+  powerBar.style.width = Math.max(0, state.power) + '%';
+  hudPower.classList.toggle('low', state.power <= 40 && state.power > 15);
+  hudPower.classList.toggle('critical', state.power <= 15);
+  powerBar.classList.toggle('low', state.power <= 40 && state.power > 15);
+  powerBar.classList.toggle('critical', state.power <= 15);
+  hudTime.textContent = `${state.hour === 0 ? '12' : state.hour} AM`;
+  $('nightText').textContent = state.night;
+}
+
+let lastFrame = 0;
+function gameLoop(timestamp) {
+  if (!state.gameActive) return;
+  if (!lastFrame) lastFrame = timestamp;
+  const dt = Math.min((timestamp - lastFrame) / 1000, 0.1);
+  lastFrame = timestamp;
+
+  if (!state.powerOutState) {
+    state.hourTimer += dt;
+    if (state.hourTimer >= state.secondsPerHour) { state.hourTimer = 0; state.hour++; sfxHourChange(); if (state.hour >= 6) return winNight(); }
+    state.power -= calculatePowerDrain() * dt;
+    if (state.power <= 0) { state.power = 0; updateHUD(); return powerOut(); }
+
+    updateAnimatronics(dt);
+    if (state.cctvOpen) updateCCTVFeed();
+    if (state.lightLeftOn || state.lightRightOn) updatePeek();
+    updateHUD();
+  }
+  
+  requestAnimationFrame(gameLoop);
+}
+
+function winNight() {
+  state.gameActive = false;
+  playTone(523, 0.3, 'sine', 0.15); setTimeout(() => playTone(659, 0.3, 'sine', 0.15), 200); setTimeout(() => playTone(784, 0.5, 'sine', 0.15), 400);
+  if (state.night >= 5) $('finalWinScreen').classList.remove('hidden');
+  else { $('winText').textContent = `Kamu selamat di Malam ${state.night}! Siap untuk Malam ${state.night + 1}?`; $('winScreen').classList.remove('hidden'); }
+}
+
+function startNight() {
+  initAudio(); startHeartbeat();
+  state.hour = 0; state.power = 100; state.hourTimer = 0;
+  state.doorLeftClosed = false; state.doorRightClosed = false;
+  state.lightLeftOn = false; state.lightRightOn = false;
+  state.jumpscareActive = false; state.animatronics = createAnimatronics();
+  state.gameActive = true; state.cctvOpen = false; lastFrame = 0;
+  state.powerOutState = false;
+  state.doorDelay = { bonnie: 0, chica: 0, freddy: 0, foxy: 0 };
+  soundTimeout = {};
+  warningOverlay.classList.remove('active');
+  freddyPowerOut.classList.remove('active');
+  officeView.classList.remove('dark');
+  debugText.style.display = 'none';
+  toreadorAudio.pause();
+  toreadorAudio.currentTime = 0;
+
+  doorLeft.className = 'door open'; doorRight.className = 'door open';
+  doorBtnLeft.classList.remove('active'); doorBtnRight.classList.remove('active');
+  lightBtnLeft.classList.remove('active'); lightBtnRight.classList.remove('active');
+  popupLeft.classList.remove('active'); popupRight.classList.remove('active');
+  cctvOverlay.classList.remove('active'); cctvToggleBtn.textContent = '📹 CCTV (S)';
+  $('monitorText').innerHTML = 'CAM<br>OFF';
+
+  ['startScreen', 'diffScreen', 'gameOverScreen', 'winScreen', 'finalWinScreen'].forEach(id => $(id).classList.add('hidden'));
+  updateHUD(); playPhoneGuy(); requestAnimationFrame(gameLoop);
+}
+
+/* ==================== EVENTS ==================== */
+doorBtnLeft.addEventListener('click', () => state.gameActive && setDoorLeft(!state.doorLeftClosed));
+doorBtnRight.addEventListener('click', () => state.gameActive && setDoorRight(!state.doorRightClosed));
+
+lightBtnLeft.addEventListener('pointerdown', (e) => { e.preventDefault(); state.gameActive && setLightLeft(true); });
+lightBtnLeft.addEventListener('pointerup', () => state.gameActive && setLightLeft(false));
+lightBtnLeft.addEventListener('pointerleave', () => state.gameActive && setLightLeft(false));
+
+lightBtnRight.addEventListener('pointerdown', (e) => { e.preventDefault(); state.gameActive && setLightRight(true); });
+lightBtnRight.addEventListener('pointerup', () => state.gameActive && setLightRight(false));
+lightBtnRight.addEventListener('pointerleave', () => state.gameActive && setLightRight(false));
+
+document.addEventListener('keydown', (e) => {
+  if (!state.gameActive) return;
+  const k = e.key.toLowerCase();
+  if (k === 'a') setDoorLeft(!state.doorLeftClosed);
+  if (k === 'd') setDoorRight(!state.doorRightClosed);
+  if (k === 'q') setLightLeft(true);
+  if (k === 'e') setLightRight(true);
+  if (k === 's') toggleCCTV();
+});
+document.addEventListener('keyup', (e) => {
+  const k = e.key.toLowerCase();
+  if (k === 'q') setLightLeft(false);
+  if (k === 'e') setLightRight(false);
+});
+
+cctvToggleBtn.addEventListener('click', () => state.gameActive && toggleCCTV());
+initCCTV();
+
+$('startBtn').addEventListener('click', () => { $('startScreen').classList.add('hidden'); $('diffScreen').classList.remove('hidden'); });
+document.querySelectorAll('.diff-card').forEach(card => { card.addEventListener('click', () => { document.querySelectorAll('.diff-card').forEach(c => c.classList.remove('selected')); card.classList.add('selected'); }); });
+$('diffConfirmBtn').addEventListener('click', () => { const sel = document.querySelector('.diff-card.selected'); if (sel) state.difficulty = sel.dataset.diff; state.night = 1; startNight(); });
+$('diffBackBtn').addEventListener('click', () => { $('diffScreen').classList.add('hidden'); $('startScreen').classList.remove('hidden'); });
+$('retryBtn').addEventListener('click', () => { $('gameOverScreen').classList.add('hidden'); startNight(); });
+$('nextNightBtn').addEventListener('click', () => { $('winScreen').classList.add('hidden'); state.night++; startNight(); });
+$('backToMenuBtn').addEventListener('click', () => { $('gameOverScreen').classList.add('hidden'); $('startScreen').classList.remove('hidden'); state.night = 1; });
+$('playAgainBtn').addEventListener('click', () => { $('finalWinScreen').classList.add('hidden'); state.night = 1; $('startScreen').classList.remove('hidden'); });
+</script>
+</body>
+</html>
