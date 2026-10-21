@@ -1,0 +1,939 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>🥕 Wordlé — Monkeytype Edition</title>
+<!-- Import beberapa font Google biar bisa dipilih -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&family=JetBrains+Mono:wght@400;700;800&family=Playfair+Display:wght@700&family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f8f9fa;
+    --text: #1a1a1a;
+    --sub-text: #888;
+    --border: #d1d5db;
+    --correct: #ff8c1a;
+    --present: #7cc243;
+    --absent: #6b7280;
+    --accent: #ff8c1a;
+    --key-bg: #e5e7eb;
+    --font-family: 'Inter', sans-serif;
+    --tile-size: 60px;
+  }
+  
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-family);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transition: background 0.3s, color 0.3s, font-family 0.2s;
+    user-select: none;
+  }
+
+  /* HEADER - CLEAN */
+  header {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+  }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo span { color: var(--accent); }
+  .header-btns { display: flex; gap: 10px; }
+  .icon-btn {
+    background: none; border: none; font-size: 20px; cursor: pointer;
+    padding: 6px; border-radius: 8px; color: var(--sub-text);
+    transition: color 0.2s, background 0.2s;
+  }
+  .icon-btn:hover { color: var(--text); background: var(--key-bg); }
+
+  /* STATS BAR - MONKEYTYPE STYLE */
+  .top-stats {
+    display: flex; gap: 24px; font-size: 14px; color: var(--sub-text); font-weight: 600;
+    margin-bottom: 8px;
+  }
+  .top-stats b { color: var(--accent); font-size: 16px; }
+
+  /* BOARD - CLEAN */
+  #board-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: 10px;
+  }
+  #board {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .row {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+  .tile {
+    width: var(--tile-size);
+    height: var(--tile-size);
+    border: 2px solid transparent;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: calc(var(--tile-size) * 0.5);
+    font-weight: 800;
+    text-transform: uppercase;
+    border-radius: 8px;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
+  }
+  .tile.active-row {
+    border-color: var(--border);
+  }
+  .tile.filled {
+    border-color: var(--accent);
+    animation: pop 0.1s;
+  }
+  @keyframes pop { 50% { transform: scale(1.05); } }
+
+  .tile.reveal { animation: flip 0.4s ease forwards; }
+  @keyframes flip {
+    0% { transform: rotateX(0); }
+    50% { transform: rotateX(90deg); }
+    100% { transform: rotateX(0); }
+  }
+  .tile.correct { background: var(--correct); border-color: var(--correct); color: #fff; }
+  .tile.present { background: var(--present); border-color: var(--present); color: #fff; }
+  .tile.absent  { background: var(--absent);  border-color: var(--absent);  color: #fff; }
+
+  .row.shake { animation: shake 0.4s; }
+  @keyframes shake {
+    10%,90% { transform: translateX(-2px); }
+    20%,80% { transform: translateX(4px); }
+    30%,50%,70% { transform: translateX(-6px); }
+    40%,60% { transform: translateX(6px); }
+  }
+
+  /* KEYBOARD - CLEAN */
+  #keyboard {
+    width: 100%;
+    max-width: 600px;
+    padding: 10px 6px 20px;
+    flex-shrink: 0;
+  }
+  .krow { display: flex; justify-content: center; gap: 6px; margin-bottom: 6px; }
+  .key {
+    flex: 1; max-width: 46px; height: 52px;
+    background: var(--key-bg); color: var(--text);
+    border: none; border-radius: 6px;
+    font-weight: 700; font-size: 14px; font-family: inherit; text-transform: uppercase;
+    cursor: pointer; transition: transform 0.1s, background 0.2s, color 0.2s;
+  }
+  .key:active { transform: scale(0.92); }
+  .key.wide { flex: 1.5; max-width: 70px; font-size: 11px; }
+  .key.correct { background: var(--correct); color: #fff; }
+  .key.present { background: var(--present); color: #fff; }
+  .key.absent  { background: var(--absent);  color: #fff; }
+
+  /* TOAST */
+  #toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg);
+    padding: 12px 24px; border-radius: 8px; font-weight: 700; font-size: 14px;
+    opacity: 0; pointer-events: none; transition: opacity 0.2s;
+    z-index: 200; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  #toast.show { opacity: 1; }
+
+  /* MODAL */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(4px);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; padding: 16px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--bg); color: var(--text);
+    border-radius: 16px; padding: 24px;
+    width: 100%; max-width: 440px; max-height: 88vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+    border: 1px solid var(--border);
+  }
+  .modal h2 { font-size: 20px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; font-weight: 800; }
+  .modal h2 button { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--sub-text); }
+  .modal h2 button:hover { color: var(--text); }
+  
+  .modal label { display: block; font-size: 12px; font-weight: 700; margin: 16px 0 8px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--sub-text); }
+  .modal input[type=text], .modal input[type=number], .modal textarea, .modal select {
+    width: 100%; padding: 12px 14px; border-radius: 8px;
+    border: 2px solid var(--border); background: var(--bg); color: var(--text);
+    font-size: 14px; font-family: inherit; transition: border-color 0.2s;
+  }
+  .modal input:focus, .modal textarea:focus, .modal select:focus {
+    outline: none; border-color: var(--accent);
+  }
+  .modal textarea { resize: vertical; min-height: 100px; font-family: monospace; font-size: 13px; }
+  .modal .hint { font-size: 12px; color: var(--sub-text); margin-top: 6px; line-height: 1.4; }
+  
+  .color-row { display: flex; gap: 12px; margin-top: 8px; }
+  .color-pick {
+    flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: var(--sub-text);
+  }
+  .color-pick input[type=color] {
+    width: 100%; height: 44px; border: 2px solid var(--border);
+    border-radius: 8px; cursor: pointer; padding: 0; background: none;
+  }
+  .color-pick input[type=color]::-webkit-color-swatch-wrapper { padding: 4px; }
+  .color-pick input[type=color]::-webkit-color-swatch { border: none; border-radius: 4px; }
+
+  .btn-primary, .btn-secondary {
+    width: 100%; padding: 14px; border-radius: 8px; font-weight: 800;
+    font-size: 15px; cursor: pointer; border: none; margin-top: 20px;
+    transition: transform 0.1s, opacity 0.2s; font-family: inherit;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--key-bg); color: var(--text); margin-top: 10px; }
+  .btn-primary:active, .btn-secondary:active { transform: scale(0.97); }
+
+  /* SWITCH TOGGLE */
+  .switch { position: relative; display: inline-block; width: 44px; height: 24px; float: right; margin-top: -4px; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: var(--border); transition: .4s; border-radius: 24px; }
+  .slider:before { position: absolute; content: ""; height: 18px; width: 18px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+  input:checked + .slider { background-color: var(--accent); }
+  input:checked + .slider:before { transform: translateX(20px); }
+
+  .diff-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+  .diff-opt {
+    padding: 10px; border: 2px solid var(--border); border-radius: 8px;
+    background: none; cursor: pointer; text-align: center; font-family: inherit;
+    transition: 0.15s;
+  }
+  .diff-opt .name { font-weight: 800; font-size: 13px; display: block; }
+  .diff-opt .desc { font-size: 11px; color: var(--sub-text); display: block; margin-top: 4px; }
+  .diff-opt.active {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+  .diff-opt.active .name { color: var(--accent); }
+
+  /* RESULT MODAL */
+  .result-emoji { font-size: 60px; text-align: center; margin: 10px 0; }
+  .result-title { font-size: 24px; font-weight: 800; text-align: center; margin-bottom: 8px; }
+  .result-sub { text-align: center; color: var(--sub-text); font-size: 14px; margin-bottom: 20px; }
+  .result-word { text-align: center; font-size: 32px; font-weight: 900; letter-spacing: 8px; text-transform: uppercase; color: var(--accent); margin-bottom: 20px; }
+
+  /* RESPONSIVE */
+  @media (max-height: 700px) {
+    .key { height: 44px; }
+    .modal { padding: 16px; }
+  }
+  @media (max-width: 400px) {
+    .top-stats { gap: 12px; font-size: 12px; }
+    .top-stats b { font-size: 14px; }
+    .key { height: 46px; font-size: 12px; }
+    .key.wide { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">WOR<span>DLÉ</span> 🥕</div>
+  <div class="header-btns">
+    <button class="icon-btn" id="btn-sound" title="Toggle Sound">🔊</button>
+    <button class="icon-btn" id="btn-settings" title="Pengaturan">⚙️</button>
+    <button class="icon-btn" id="btn-help" title="Cara main">❓</button>
+  </div>
+</header>
+
+<div class="top-stats">
+  <span>🔥 Streak: <b id="stat-streak">0</b></span>
+  <span>🏆 Max: <b id="stat-max">0</b></span>
+  <span>✅ Menang: <b id="stat-wins">0</b></span>
+</div>
+
+<div id="board-wrap"><div id="board"></div></div>
+
+<div id="keyboard"></div>
+
+<div id="toast"></div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-backdrop" id="settings-modal">
+  <div class="modal">
+    <h2>⚙️ Pengaturan <button data-close="settings-modal">✕</button></h2>
+
+    <label>Difficulty (Panjang Kata)</label>
+    <div class="diff-grid" id="diff-grid">
+      <button class="diff-opt" data-len="4"><span class="name">Santai</span><span class="desc">4 huruf</span></button>
+      <button class="diff-opt" data-len="5"><span class="name">Normal</span><span class="desc">5 huruf</span></button>
+      <button class="diff-opt" data-len="6"><span class="name">Susah</span><span class="desc">6 huruf</span></button>
+      <button class="diff-opt" data-len="7"><span class="name">Expert</span><span class="desc">7 huruf</span></button>
+      <button class="diff-opt" data-len="8"><span class="name">Master</span><span class="desc">8 huruf</span></button>
+      <button class="diff-opt" data-len="0"><span class="name">Custom</span><span class="desc">atur</span></button>
+    </div>
+    <input type="number" id="custom-len" min="3" max="15" value="9" style="margin-top:8px;display:none;">
+
+    <label>Font Style</label>
+    <select id="font-select">
+      <option value="Inter">Inter (Sans-Serif Clean)</option>
+      <option value="JetBrains Mono">JetBrains Mono (Coding)</option>
+      <option value="Poppins">Poppins (Bulat & Ceria)</option>
+      <option value="Playfair Display">Playfair Display (Serif Elegan)</option>
+    </select>
+
+    <label>Sound Effects <label class="switch"><input type="checkbox" id="sound-toggle" checked><span class="slider"></span></label></label>
+
+    <label>Tema Warna</label>
+    <select id="theme-select">
+      <option value="carrot">🥕 Carrot (putih + oranye + ijo)</option>
+      <option value="mono">⚫ Mono (putih + hitam)</option>
+      <option value="cyber">🌌 Cyber (gelap + neon)</option>
+      <option value="custom">🎨 Custom...</option>
+    </select>
+
+    <div id="custom-colors" style="display:none;">
+      <label>Warna Custom</label>
+      <div class="color-row">
+        <div class="color-pick"><span>Benar</span><input type="color" id="c-correct" value="#ff8c1a"></div>
+        <div class="color-pick"><span>Ada</span><input type="color" id="c-present" value="#7cc243"></div>
+        <div class="color-pick"><span>Hilang</span><input type="color" id="c-absent" value="#787c7e"></div>
+        <div class="color-pick"><span>BG</span><input type="color" id="c-bg" value="#ffffff"></div>
+      </div>
+    </div>
+
+    <label>Wordlist Custom (Opsional)</label>
+    <textarea id="wordlist" placeholder="Paste kata-kata kamu, satu per baris. Kosongkan untuk pakai kamus bawaan."></textarea>
+    <div class="hint">💡 Pastikan wordlist punya cukup banyak kata untuk panjang huruf yang dipilih.</div>
+
+    <button class="btn-primary" id="btn-apply">Terapkan & Main</button>
+    <button class="btn-secondary" id="btn-reset-default">Reset ke Default</button>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="modal-backdrop" id="help-modal">
+  <div class="modal">
+    <h2>❓ Cara Main <button data-close="help-modal">✕</button></h2>
+    <p style="font-size:14px; line-height:1.7; margin-bottom:16px;">
+      Tebak kata rahasia dalam <b>6 percobaan</b>. Setiap tebakan harus sepanjang kata rahasia.
+    </p>
+    <div style="display:flex; align-items:center; gap:12px; margin:10px 0; font-size:14px;">
+      <div class="tile" style="width:40px;height:40px;font-size:20px;background:var(--correct);border-color:var(--correct);color:#fff;">A</div>
+      <span>Huruf <b>benar</b> & <b>posisi benar</b></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; margin:10px 0; font-size:14px;">
+      <div class="tile" style="width:40px;height:40px;font-size:20px;background:var(--present);border-color:var(--present);color:#fff;">B</div>
+      <span>Huruf <b>ada</b> tapi <b>salah posisi</b></span>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; margin:10px 0; font-size:14px;">
+      <div class="tile" style="width:40px;height:40px;font-size:20px;background:var(--absent);border-color:var(--absent);color:#fff;">C</div>
+      <span>Huruf <b>tidak ada</b> di kata</span>
+    </div>
+    <button class="btn-primary" data-close="help-modal">Oke, ngerti!</button>
+  </div>
+</div>
+
+<!-- RESULT MODAL -->
+<div class="modal-backdrop" id="result-modal">
+  <div class="modal">
+    <div class="result-emoji" id="result-emoji">🎉</div>
+    <div class="result-title" id="result-title">Mantap!</div>
+    <div class="result-sub" id="result-sub"></div>
+    <div class="result-word" id="result-word"></div>
+    <button class="btn-primary" id="btn-play-again">Main Lagi 🚀</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   KAMUS BAWAAN (SUPER FIXED - PASTI SESUAI PANJANG)
+   ========================================================= */
+const DICT = {
+  3: ['api','air','aku','ibu','mata','kaki','batu','bola','roti','susu','nasi','meja','awan','hujan','panas','manis','asam','buah','apel','salju','laut','sapi','kuda','ayam','ikan','ular','tikus','singa','macan','gajah','semut','lebah','buku','tali','jalan','lari','dia','kita','kopi','teh','kue','mie','tahu'],
+  4: ['buku','roti','kue','susu','nasi','meja','kursi','pintu','kaca','awan','hujan','panas','manis','asam','buah','apel','jeruk','mangga','pisang','salju','gunung','laut','sungai','hutan','sapi','kuda','ayam','kucing','anjing','burung','ikan','ular','tikus','singa','macan','gajah','semut','lebah','kopi','teh','donat','pizza','bakso','soto','sate','tempe','bayam','sawi','labu','timun','jamur','paus','hiu','lumba','buaya','kadal','cicak','kobra','piton','kelinci','hamster','marmut','musang','kancil','kijang','rusa','tapir','badak','zebra','kerbau','banteng','kambing','domba','unta','babi','panda','beruang','harimau','jaguar','puma','lynx','rubah','serigala','hyena','luwak','cheetah'],
+  5: ['kucing','anjing','rumah','pohon','bunga','hutan','sungai','pantai','gunung','lembah','bukit','sawah','ladang','kebun','taman','kolam','danau','rawa','gurun','padang','hujan','salju','angin','badai','petir','kilat','panas','dingin','sejuk','hangat','lembut','tajam','besar','kecil','tinggi','rendah','lebar','sempit','tebal','tipis','berat','ringan','cepat','kuat','lemah','muda','baru','lama','baik','buruk','benar','salah','mudah','susah','kaya','miskin','sehat','sakit','senang','sedih','marah','takut','berani','rajin','malas','pintar','bodoh','jujur','bohong','adil','curang','ramah','sopan','murah','mahal','untung','rugi','kotor','bersih','terang','gelap','ramai','sepi','padat','kosong','penuh','basah','kering','hidup','mati','makan','minum','tidur','bangun','duduk','jalan','lari','lompat','terbang','menari','belajar','bekerja','membaca','menulis','melukis','memasak','mencuci','menyapu','mengepel','berkebun','berburu','memancing','mendaki','berkemah','berpikir','bermimpi','berdoa','berbagi','menolong','memberi','menjaga','merawat','mendidik','mengajar','melatih','memuji','menegur','berdamai','bertemu','berkunjung','berbicara','bercerita','berdiskusi','berdebat','berdagang','berhemat','menabung','meminjam','menagih','melunasi','beramal','berinfak'],
+  6: ['kucing','anjing','rumah','pohon','bunga','hutan','sungai','pantai','gunung','lembah','bukit','sawah','ladang','kebun','taman','kolam','danau','gurun','padang','hujan','salju','angin','badai','petir','kilat','panas','dingin','sejuk','hangat','lembut','tajam','besar','kecil','tinggi','rendah','lebar','sempit','tebal','tipis','berat','ringan','cepat','kuat','lemah','muda','baru','lama','baik','buruk','benar','salah','mudah','susah','kaya','miskin','sehat','sakit','senang','sedih','marah','takut','berani','rajin','malas','pintar','bodoh','jujur','bohong','adil','curang','ramah','sopan','murah','mahal','untung','rugi','kotor','bersih','terang','gelap','ramai','sepi','padat','kosong','penuh','basah','kering','hidup','mati','makan','minum','tidur','bangun','duduk','jalan','lari','lompat','terbang','menari','belajar','bekerja','membaca','menulis','melukis','memasak','mencuci','menyapu','mengepel','berkebun','berburu','memancing','mendaki','berkemah','berpikir','bermimpi','berdoa','berbagi','menolong','memberi','menjaga','merawat','mendidik','mengajar','melatih','memuji','menegur','berdamai','bertemu','berkunjung','berbicara','bercerita','berdiskusi','berdebat','berdagang','berhemat','menabung','meminjam','menagih','melunasi','beramal','berinfak'],
+  7: ['kucing','anjing','rumah','pohon','bunga','hutan','sungai','pantai','gunung','lembah','bukit','sawah','ladang','kebun','taman','kolam','danau','gurun','padang','hujan','salju','angin','badai','petir','kilat','panas','dingin','sejuk','hangat','lembut','tajam','besar','kecil','tinggi','rendah','lebar','sempit','tebal','tipis','berat','ringan','cepat','kuat','lemah','muda','baru','lama','baik','buruk','benar','salah','mudah','susah','kaya','miskin','sehat','sakit','senang','sedih','marah','takut','berani','rajin','malas','pintar','bodoh','jujur','bohong','adil','curang','ramah','sopan','murah','mahal','untung','rugi','kotor','bersih','terang','gelap','ramai','sepi','padat','kosong','penuh','basah','kering','hidup','mati','makan','minum','tidur','bangun','duduk','jalan','lari','lompat','terbang','menari','belajar','bekerja','membaca','menulis','melukis','memasak','mencuci','menyapu','mengepel','berkebun','berburu','memancing','mendaki','berkemah','berpikir','bermimpi','berdoa','berbagi','menolong','memberi','menjaga','merawat','mendidik','mengajar','melatih','memuji','menegur','berdamai','bertemu','berkunjung','berbicara','bercerita','berdiskusi','berdebat','berdagang','berhemat','menabung','meminjam','menagih','melunasi','beramal','berinfak'],
+  8: ['kucing','anjing','rumah','pohon','bunga','hutan','sungai','pantai','gunung','lembah','bukit','sawah','ladang','kebun','taman','kolam','danau','gurun','padang','hujan','salju','angin','badai','petir','kilat','panas','dingin','sejuk','hangat','lembut','tajam','besar','kecil','tinggi','rendah','lebar','sempit','tebal','tipis','berat','ringan','cepat','kuat','lemah','muda','baru','lama','baik','buruk','benar','salah','mudah','susah','kaya','miskin','sehat','sakit','senang','sedih','marah','takut','berani','rajin','malas','pintar','bodoh','jujur','bohong','adil','curang','ramah','sopan','murah','mahal','untung','rugi','kotor','bersih','terang','gelap','ramai','sepi','padat','kosong','penuh','basah','kering','hidup','mati','makan','minum','tidur','bangun','duduk','jalan','lari','lompat','terbang','menari','belajar','bekerja','membaca','menulis','melukis','memasak','mencuci','menyapu','mengepel','berkebun','berburu','memancing','mendaki','berkemah','berpikir','bermimpi','berdoa','berbagi','menolong','memberi','menjaga','merawat','mendidik','mengajar','melatih','memuji','menegur','berdamai','bertemu','berkunjung','berbicara','bercerita','berdiskusi','berdebat','berdagang','berhemat','menabung','meminjam','menagih','melunasi','beramal','berinfak']
+};
+
+// Fix the dictionary (filter each array to ensure exact length)
+for (let len in DICT) {
+  DICT[len] = DICT[len].filter(w => w.length === parseInt(len));
+  DICT[len] = [...new Set(DICT[len])]; // remove duplicates
+}
+
+function getWordsForLength(len) {
+  if (state.customWords && state.customWords.length) {
+    const filtered = state.customWords.filter(w => w.length === len);
+    if (filtered.length > 0) return filtered;
+  }
+  if (DICT[len] && DICT[len].length) return DICT[len];
+  // Fallback: all words of that length from DICT
+  const all = Object.values(DICT).flat();
+  return all.filter(w => w.length === len);
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = {
+  wordLength: 5,
+  customWords: [],
+  theme: 'carrot',
+  customColors: { correct: '#ff8c1a', present: '#7cc243', absent: '#787c7e', bg: '#ffffff' },
+  fontFamily: 'Inter',
+  soundEnabled: true,
+  streak: 0,
+  maxStreak: 0,
+  totalWins: 0,
+  secret: '',
+  guesses: [],
+  current: '',
+  gameOver: false,
+  gameWon: false,
+  rowIndex: 0,
+  keyboardState: {},
+};
+
+const MAX_TRIES = 6;
+
+/* =========================================================
+   SOUND ENGINE (Web Audio API - No files needed)
+   ========================================================= */
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+function initAudio() {
+  if (!audioCtx) audioCtx = new AudioContext();
+}
+function playTone(freq, type, duration, vol=0.1) {
+  if (!state.soundEnabled) return;
+  initAudio();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+  gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+  osc.connect(gain);
+  gain.connect(audioCtx.destination);
+  osc.start();
+  osc.stop(audioCtx.currentTime + duration);
+}
+function playTypeSound() { playTone(600 + Math.random()*100, 'sine', 0.05, 0.05); }
+function playDeleteSound() { playTone(300, 'sine', 0.08, 0.05); }
+function playSubmitSound() { playTone(400, 'triangle', 0.1, 0.08); setTimeout(()=>playTone(600, 'triangle', 0.1, 0.08), 80); }
+function playWinSound() {
+  if (!state.soundEnabled) return;
+  [440, 554, 659, 880].forEach((f, i) => setTimeout(() => playTone(f, 'sine', 0.3, 0.15), i * 120));
+}
+function playLoseSound() {
+  if (!state.soundEnabled) return;
+  [300, 250, 200].forEach((f, i) => setTimeout(() => playTone(f, 'sawtooth', 0.3, 0.1), i * 150));
+}
+
+/* =========================================================
+   LOAD/SAVE
+   ========================================================= */
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem('wordle_settings') || '{}');
+    if (s.wordLength) state.wordLength = s.wordLength;
+    if (s.customWords) state.customWords = s.customWords;
+    if (s.theme) state.theme = s.theme;
+    if (s.customColors) state.customColors = s.customColors;
+    if (s.fontFamily) state.fontFamily = s.fontFamily;
+    if (s.soundEnabled !== undefined) state.soundEnabled = s.soundEnabled;
+    
+    const stats = JSON.parse(localStorage.getItem('wordle_stats') || '{}');
+    if (stats.streak !== undefined) state.streak = stats.streak;
+    if (stats.maxStreak !== undefined) state.maxStreak = stats.maxStreak;
+    if (stats.totalWins !== undefined) state.totalWins = stats.totalWins;
+  } catch (e) {}
+  updateSoundIcon();
+}
+function saveSettings() {
+  localStorage.setItem('wordle_settings', JSON.stringify({
+    wordLength: state.wordLength,
+    customWords: state.customWords,
+    theme: state.theme,
+    customColors: state.customColors,
+    fontFamily: state.fontFamily,
+    soundEnabled: state.soundEnabled,
+  }));
+}
+function saveStats() {
+  localStorage.setItem('wordle_stats', JSON.stringify({
+    streak: state.streak,
+    maxStreak: state.maxStreak,
+    totalWins: state.totalWins,
+  }));
+}
+
+/* =========================================================
+   THEME & FONT
+   ========================================================= */
+function applyTheme() {
+  const root = document.documentElement;
+  if (state.theme === 'carrot') {
+    root.style.setProperty('--correct', '#ff8c1a');
+    root.style.setProperty('--present', '#7cc243');
+    root.style.setProperty('--absent', '#6b7280');
+    root.style.setProperty('--bg', '#f8f9fa');
+    root.style.setProperty('--text', '#1a1a1a');
+    root.style.setProperty('--sub-text', '#888');
+    root.style.setProperty('--key-bg', '#e5e7eb');
+    root.style.setProperty('--accent', '#ff8c1a');
+    root.style.setProperty('--border', '#d1d5db');
+  } else if (state.theme === 'mono') {
+    root.style.setProperty('--correct', '#1a1a1a');
+    root.style.setProperty('--present', '#888');
+    root.style.setProperty('--absent', '#bbb');
+    root.style.setProperty('--bg', '#ffffff');
+    root.style.setProperty('--text', '#1a1a1a');
+    root.style.setProperty('--sub-text', '#888');
+    root.style.setProperty('--key-bg', '#e8e8e8');
+    root.style.setProperty('--accent', '#1a1a1a');
+    root.style.setProperty('--border', '#d0d0d0');
+  } else if (state.theme === 'cyber') {
+    root.style.setProperty('--correct', '#ff006e');
+    root.style.setProperty('--present', '#00f5ff');
+    root.style.setProperty('--absent', '#3a3a4a');
+    root.style.setProperty('--bg', '#0a0a1a');
+    root.style.setProperty('--text', '#e0e0f0');
+    root.style.setProperty('--sub-text', '#8888aa');
+    root.style.setProperty('--key-bg', '#1a1a2e');
+    root.style.setProperty('--accent', '#ff006e');
+    root.style.setProperty('--border', '#2a2a4a');
+  } else {
+    const c = state.customColors;
+    root.style.setProperty('--correct', c.correct);
+    root.style.setProperty('--present', c.present);
+    root.style.setProperty('--absent', c.absent);
+    root.style.setProperty('--bg', c.bg);
+    root.style.setProperty('--text', isLight(c.bg) ? '#1a1a1a' : '#e0e0f0');
+    root.style.setProperty('--sub-text', isLight(c.bg) ? '#888' : '#8888aa');
+    root.style.setProperty('--key-bg', isLight(c.bg) ? '#e5e7eb' : '#1a1a2e');
+    root.style.setProperty('--accent', c.correct);
+    root.style.setProperty('--border', isLight(c.bg) ? '#d1d5db' : '#2a2a4a');
+  }
+  root.style.setProperty('--font-family', `'${state.fontFamily}', sans-serif`);
+}
+function isLight(hex) {
+  const c = hex.replace('#','');
+  const r = parseInt(c.substr(0,2),16), g = parseInt(c.substr(2,2),16), b = parseInt(c.substr(4,2),16);
+  return (r*299 + g*587 + b*114) / 1000 > 128;
+}
+
+/* =========================================================
+   GAME LOGIC
+   ========================================================= */
+function startGame() {
+  const words = getWordsForLength(state.wordLength);
+  if (!words.length) {
+    toast(`Ga ada kata ${state.wordLength} huruf di wordlist!`);
+    return;
+  }
+  state.secret = words[Math.floor(Math.random() * words.length)].toLowerCase();
+  state.guesses = [];
+  state.current = '';
+  state.gameOver = false;
+  state.gameWon = false;
+  state.rowIndex = 0;
+  state.keyboardState = {};
+  renderBoard();
+  renderKeyboard();
+  updateStatsUI();
+  saveSettings();
+}
+
+function evaluateGuess(guess) {
+  const secret = state.secret;
+  const len = secret.length;
+  const marks = new Array(len).fill('absent');
+  const secretChars = secret.split('');
+  const guessChars = guess.split('');
+  const used = new Array(len).fill(false);
+
+  for (let i = 0; i < len; i++) {
+    if (guessChars[i] === secretChars[i]) {
+      marks[i] = 'correct';
+      used[i] = true;
+    }
+  }
+  for (let i = 0; i < len; i++) {
+    if (marks[i] === 'correct') continue;
+    for (let j = 0; j < len; j++) {
+      if (!used[j] && guessChars[i] === secretChars[j]) {
+        marks[i] = 'present';
+        used[j] = true;
+        break;
+      }
+    }
+  }
+  return marks;
+}
+
+function submitGuess() {
+  if (state.gameOver) return;
+  if (state.current.length !== state.wordLength) {
+    toast(`Kata harus ${state.wordLength} huruf!`);
+    shakeRow(state.rowIndex);
+    playDeleteSound();
+    return;
+  }
+  
+  if (state.customWords.length > 0) {
+    const validSet = new Set(state.customWords.map(w => w.toLowerCase()));
+    if (!validSet.has(state.current.toLowerCase())) {
+      const inDict = (DICT[state.wordLength] || []).includes(state.current.toLowerCase());
+      if (!inDict) {
+        toast('Kata tidak ada di wordlist!');
+        shakeRow(state.rowIndex);
+        playDeleteSound();
+        return;
+      }
+    }
+  }
+
+  playSubmitSound();
+  const marks = evaluateGuess(state.current);
+  state.guesses.push({ word: state.current, marks });
+
+  for (let i = 0; i < state.current.length; i++) {
+    const ch = state.current[i];
+    const m = marks[i];
+    const prev = state.keyboardState[ch];
+    if (prev === 'correct') continue;
+    if (prev === 'present' && m !== 'correct') continue;
+    state.keyboardState[ch] = m;
+  }
+
+  const isWin = state.current === state.secret;
+  state.current = '';
+  state.rowIndex = state.guesses.length;
+
+  renderBoard();
+  renderKeyboard();
+
+  if (isWin) {
+    state.gameOver = true;
+    state.gameWon = true;
+    state.streak++;
+    state.totalWins++;
+    if (state.streak > state.maxStreak) state.maxStreak = state.streak;
+    saveStats();
+    updateStatsUI();
+    playWinSound();
+    setTimeout(() => showResult(true), 800);
+  } else if (state.guesses.length >= MAX_TRIES) {
+    state.gameOver = true;
+    state.gameWon = false;
+    state.streak = 0;
+    saveStats();
+    updateStatsUI();
+    playLoseSound();
+    setTimeout(() => showResult(false), 800);
+  }
+}
+
+function addChar(ch) {
+  if (state.gameOver) return;
+  if (state.current.length >= state.wordLength) return;
+  state.current += ch.toLowerCase();
+  playTypeSound();
+  renderBoard();
+}
+function removeChar() {
+  if (state.gameOver) return;
+  if (state.current.length === 0) return;
+  state.current = state.current.slice(0, -1);
+  playDeleteSound();
+  renderBoard();
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function renderBoard() {
+  const board = document.getElementById('board');
+  const wrap = document.getElementById('board-wrap');
+  const len = state.wordLength;
+  const maxRows = MAX_TRIES;
+
+  const wrapW = wrap.clientWidth - 20;
+  const wrapH = wrap.clientHeight - 20;
+  const gap = 8;
+  let tileByW = Math.floor((wrapW - (len - 1) * gap) / len);
+  let tileByH = Math.floor((wrapH - (maxRows - 1) * gap) / maxRows);
+  let tileSize = Math.min(tileByW, tileByH, 60);
+  tileSize = Math.max(tileSize, 28);
+  board.style.setProperty('--tile-size', tileSize + 'px');
+
+  let html = '';
+  for (let r = 0; r < maxRows; r++) {
+    html += `<div class="row" data-row="${r}">`;
+    for (let c = 0; c < len; c++) {
+      let letter = '';
+      let cls = 'tile';
+      if (r < state.guesses.length) {
+        letter = state.guesses[r].word[c];
+        cls += ' ' + state.guesses[r].marks[c];
+      } else if (r === state.rowIndex && !state.gameOver) {
+        cls += ' active-row';
+        letter = state.current[c] || '';
+        if (letter) cls += ' filled';
+      }
+      html += `<div class="${cls}">${letter}</div>`;
+    }
+    html += `</div>`;
+  }
+  board.innerHTML = html;
+
+  if (state.guesses.length > 0 && state.rowIndex === state.guesses.length) {
+    const lastRow = board.querySelector(`[data-row="${state.guesses.length - 1}"]`);
+    if (lastRow) {
+      const tiles = lastRow.querySelectorAll('.tile');
+      tiles.forEach((t, i) => {
+        t.classList.add('reveal');
+        t.style.animationDelay = (i * 0.08) + 's';
+      });
+    }
+  }
+}
+
+function renderKeyboard() {
+  const rows = [
+    ['q','w','e','r','t','y','u','i','o','p'],
+    ['a','s','d','f','g','h','j','k','l'],
+    ['ENTER','z','x','c','v','b','n','m','⌫']
+  ];
+  const kb = document.getElementById('keyboard');
+  let html = '';
+  rows.forEach(row => {
+    html += '<div class="krow">';
+    row.forEach(k => {
+      const label = k === '⌫' ? '⌫' : k.toUpperCase();
+      const wide = (k === 'ENTER' || k === '⌫') ? 'wide' : '';
+      const st = state.keyboardState[k] || '';
+      html += `<button class="key ${wide} ${st}" data-key="${k}">${label}</button>`;
+    });
+    html += '</div>';
+  });
+  kb.innerHTML = html;
+  kb.querySelectorAll('.key').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const k = btn.dataset.key;
+      if (k === 'ENTER') submitGuess();
+      else if (k === '⌫') removeChar();
+      else addChar(k);
+    });
+  });
+}
+
+function shakeRow(row) {
+  const el = document.querySelector(`.row[data-row="${row}"]`);
+  if (!el) return;
+  el.classList.add('shake');
+  setTimeout(() => el.classList.remove('shake'), 400);
+}
+
+function updateStatsUI() {
+  document.getElementById('stat-streak').textContent = state.streak;
+  document.getElementById('stat-max').textContent = state.maxStreak;
+  document.getElementById('stat-wins').textContent = state.totalWins;
+}
+function updateSoundIcon() {
+  document.getElementById('btn-sound').textContent = state.soundEnabled ? '🔊' : '🔇';
+}
+
+/* =========================================================
+   TOAST & RESULT
+   ========================================================= */
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 1600);
+}
+
+function showResult(won) {
+  const modal = document.getElementById('result-modal');
+  document.getElementById('result-emoji').textContent = won ? (state.streak >= 3 ? '🔥' : '🎉') : '😢';
+  document.getElementById('result-title').textContent = won ? 'Mantap!' : 'Yah, belum beruntung';
+  document.getElementById('result-sub').textContent = won
+    ? `Kamu menang dalam ${state.guesses.length} percobaan. Streak: ${state.streak} 🔥`
+    : `Streak kamu reset. Kata rahasianya:`;
+  document.getElementById('result-word').textContent = state.secret.toUpperCase();
+  modal.classList.add('open');
+}
+
+/* =========================================================
+   MODAL SETTINGS
+   ========================================================= */
+function openSettings() {
+  document.querySelectorAll('.diff-opt').forEach(b => {
+    b.classList.toggle('active', parseInt(b.dataset.len) === state.wordLength);
+  });
+  document.getElementById('custom-len').style.display = state.wordLength > 8 ? 'block' : 'none';
+  if (state.wordLength > 8) document.getElementById('custom-len').value = state.wordLength;
+  document.getElementById('theme-select').value = state.theme;
+  document.getElementById('font-select').value = state.fontFamily;
+  document.getElementById('sound-toggle').checked = state.soundEnabled;
+  document.getElementById('custom-colors').style.display = state.theme === 'custom' ? 'block' : 'none';
+  document.getElementById('c-correct').value = state.customColors.correct;
+  document.getElementById('c-present').value = state.customColors.present;
+  document.getElementById('c-absent').value = state.customColors.absent;
+  document.getElementById('c-bg').value = state.customColors.bg;
+  document.getElementById('wordlist').value = state.customWords.join('\n');
+  document.getElementById('settings-modal').classList.add('open');
+}
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+/* =========================================================
+   EVENT WIRING
+   ========================================================= */
+function wireEvents() {
+  document.addEventListener('keydown', e => {
+    if (document.querySelector('.modal-backdrop.open')) return;
+    if (state.gameOver) return;
+    if (e.key === 'Enter') submitGuess();
+    else if (e.key === 'Backspace') { e.preventDefault(); removeChar(); }
+    else if (/^[a-zA-Z]$/.test(e.key)) addChar(e.key);
+  });
+
+  document.getElementById('btn-settings').onclick = openSettings;
+  document.getElementById('btn-help').onclick = () => document.getElementById('help-modal').classList.add('open');
+  document.getElementById('btn-sound').onclick = () => {
+    state.soundEnabled = !state.soundEnabled;
+    updateSoundIcon();
+    saveSettings();
+    if (state.soundEnabled) playTypeSound();
+  };
+  
+  document.querySelectorAll('[data-close]').forEach(b => {
+    b.onclick = () => closeModal(b.dataset.close);
+  });
+  document.querySelectorAll('.modal-backdrop').forEach(bd => {
+    bd.addEventListener('click', e => {
+      if (e.target === bd) bd.classList.remove('open');
+    });
+  });
+
+  document.querySelectorAll('.diff-opt').forEach(btn => {
+    btn.onclick = () => {
+      const len = parseInt(btn.dataset.len);
+      document.querySelectorAll('.diff-opt').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      if (len === 0) {
+        document.getElementById('custom-len').style.display = 'block';
+        document.getElementById('custom-len').focus();
+      } else {
+        document.getElementById('custom-len').style.display = 'none';
+      }
+    };
+  });
+
+  document.getElementById('theme-select').onchange = (e) => {
+    document.getElementById('custom-colors').style.display = e.target.value === 'custom' ? 'block' : 'none';
+  };
+
+  document.getElementById('btn-apply').onclick = () => {
+    const activeDiff = document.querySelector('.diff-opt.active');
+    let len;
+    if (activeDiff && activeDiff.dataset.len === '0') {
+      len = parseInt(document.getElementById('custom-len').value) || 5;
+    } else if (activeDiff) {
+      len = parseInt(activeDiff.dataset.len);
+    } else {
+      len = state.wordLength;
+    }
+    len = Math.max(3, Math.min(15, len));
+    state.wordLength = len;
+
+    state.theme = document.getElementById('theme-select').value;
+    state.fontFamily = document.getElementById('font-select').value;
+    state.soundEnabled = document.getElementById('sound-toggle').checked;
+    updateSoundIcon();
+    
+    if (state.theme === 'custom') {
+      state.customColors = {
+        correct: document.getElementById('c-correct').value,
+        present: document.getElementById('c-present').value,
+        absent: document.getElementById('c-absent').value,
+        bg: document.getElementById('c-bg').value,
+      };
+    }
+    applyTheme();
+
+    const wl = document.getElementById('wordlist').value
+      .split('\n')
+      .map(w => w.trim().toLowerCase())
+      .filter(w => w.length >= 3 && /^[a-z]+$/.test(w));
+    state.customWords = wl;
+    saveSettings();
+
+    const words = getWordsForLength(state.wordLength);
+    if (!words.length) {
+      toast(`Ga ada kata ${state.wordLength} huruf di wordlist!`);
+      return;
+    }
+
+    closeModal('settings-modal');
+    startGame();
+    toast('Game baru dimulai! 🚀');
+  };
+
+  document.getElementById('btn-reset-default').onclick = () => {
+    state.wordLength = 5;
+    state.theme = 'carrot';
+    state.fontFamily = 'Inter';
+    state.soundEnabled = true;
+    state.customWords = [];
+    state.customColors = { correct: '#ff8c1a', present: '#7cc243', absent: '#787c7e', bg: '#ffffff' };
+    applyTheme();
+    updateSoundIcon();
+    saveSettings();
+    openSettings();
+    toast('Settings direset ke default');
+  };
+
+  document.getElementById('btn-play-again').onclick = () => {
+    closeModal('result-modal');
+    startGame();
+  };
+
+  window.addEventListener('resize', () => {
+    const b = document.getElementById('board');
+    if (b) renderBoard();
+  });
+}
+
+/* =========================================================
+   INIT
+   ========================================================= */
+load();
+applyTheme();
+wireEvents();
+startGame();
+updateStatsUI();
+</script>
+</body>
+</html>
