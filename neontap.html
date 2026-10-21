@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<title>🎵 NEON TAP — Rhythm Game</title>
+<style>
+  :root {
+    --bg: #0a0a1a;
+    --panel-bg: #0f0f18;
+    --text: #e0e0f0;
+    --accent: #ff006e;
+    --cyan: #00f5ff;
+    --yellow: #ffd60a;
+    --green: #06ffa5;
+    --purple: #9d4edd;
+    --border: #2a2a4a;
+    --hover: rgba(255,0,110,0.1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    display: flex; align-items: center; justify-content: center;
+    user-select: none;
+  }
+  canvas { display: block; cursor: none; touch-action: none; }
+
+  .overlay {
+    position: fixed; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    background: rgba(10,10,26,0.98);
+    backdrop-filter: blur(10px);
+    z-index: 100;
+    padding: 16px;
+  }
+  .overlay.hidden { display: none; }
+
+  /* SONG SELECT */
+  .select-container {
+    display: flex; width: 100%; max-width: 1100px; height: 85vh;
+    max-height: 800px;
+    background: var(--panel-bg); border: 2px solid var(--border); border-radius: 16px;
+    overflow: hidden; box-shadow: 0 20px 80px rgba(0,0,0,0.8), 0 0 40px rgba(255,0,110,0.1);
+    position: relative;
+  }
+
+  .spinner-panel {
+    width: 45%; border-right: 2px solid var(--border); position: relative;
+    display: flex; flex-direction: column; background: #0a0a14;
+    min-height: 0;
+  }
+  .spinner-header {
+    padding: 20px; border-bottom: 2px solid var(--border); display: flex; justify-content: space-between; align-items: center;
+    z-index: 5; background: var(--panel-bg); flex-shrink: 0;
+  }
+  .spinner-header h2 { font-size: 16px; color: var(--cyan); letter-spacing: 2px; }
+  .upload-btn-small {
+    padding: 6px 12px; background: var(--accent); color: #fff; border: none; border-radius: 6px;
+    font-size: 11px; font-weight: 800; cursor: pointer; transition: 0.15s; font-family: inherit;
+  }
+  .upload-btn-small:hover { background: #ff3d8a; }
+  #file-upload { display: none; }
+
+  .spinner-viewport {
+    flex: 1; overflow-y: scroll; position: relative;
+    scroll-snap-type: y mandatory; scrollbar-width: none;
+    -ms-overflow-style: none;
+    min-height: 0;
+  }
+  .spinner-viewport::-webkit-scrollbar { display: none; }
+  .spinner-viewport::before, .spinner-viewport::after {
+    content: ''; position: absolute; left: 0; right: 0; height: 120px; pointer-events: none; z-index: 4;
+  }
+  .spinner-viewport::before { top: 0; background: linear-gradient(to bottom, #0a0a14 10%, transparent); }
+  .spinner-viewport::after { bottom: 0; background: linear-gradient(to top, #0a0a14 10%, transparent); }
+
+  .spinner-marker {
+    position: absolute; top: 50%; left: 0; right: 0; height: 80px; transform: translateY(-50%);
+    border-top: 2px solid var(--accent); border-bottom: 2px solid var(--accent);
+    pointer-events: none; z-index: 3; background: rgba(255,0,110,0.05);
+    display: flex; align-items: center; justify-content: space-between; padding: 0 10px;
+  }
+  .spinner-marker::before { content: '►'; color: var(--accent); font-size: 20px; }
+  .spinner-marker::after { content: '◄'; color: var(--accent); font-size: 20px; }
+
+  .spinner-inner { padding: 40vh 0; }
+  .song-item {
+    height: 80px; display: flex; flex-direction: column; justify-content: center;
+    padding: 0 30px; scroll-snap-align: center; transition: 0.2s;
+    cursor: pointer; opacity: 0.4; transform: scale(0.9);
+  }
+  .song-item.selected {
+    opacity: 1; transform: scale(1.05); background: linear-gradient(90deg, transparent, rgba(255,0,110,0.1), transparent);
+  }
+  .song-item .title { font-size: 18px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .song-item .duration { font-size: 12px; opacity: 0.6; margin-top: 2px; }
+
+  /* DETAIL PANEL */
+  .detail-panel {
+    width: 55%; display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+    min-height: 0;
+  }
+  .detail-bg {
+    position: absolute; inset: 0; opacity: 0.1; pointer-events: none;
+    background-size: cover; background-position: center;
+    filter: blur(20px); transition: 0.5s; z-index: 0;
+  }
+  .detail-content {
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    height: 100%;
+    padding: 24px 28px;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .detail-header { margin-bottom: 16px; flex-shrink: 0; }
+  .detail-header h1 { font-size: 32px; font-weight: 900; line-height: 1.1; word-break: break-word; margin-bottom: 6px; text-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+  .detail-header .meta { font-size: 13px; color: #888; display: flex; gap: 14px; flex-wrap: wrap; }
+  .detail-header .meta span { display: flex; align-items: center; gap: 6px; }
+
+  .diff-list {
+    display: flex; flex-direction: column; gap: 10px;
+    flex: 1;
+    overflow-y: auto;
+    min-height: 0;
+    padding-right: 4px;
+    padding-bottom: 4px;
+  }
+  .diff-list::-webkit-scrollbar { width: 6px; }
+  .diff-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  
+  .diff-card {
+    background: rgba(0,0,0,0.4); border: 2px solid var(--border); border-radius: 12px;
+    padding: 14px 18px; display: flex; justify-content: space-between; align-items: center;
+    transition: 0.2s; position: relative; overflow: hidden;
+    flex-shrink: 0;
+  }
+  .diff-card::before {
+    content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 6px; background: var(--border); transition: 0.2s;
+  }
+  .diff-card.easy::before { background: var(--green); }
+  .diff-card.normal::before { background: var(--yellow); }
+  .diff-card.hard::before { background: var(--accent); }
+  .diff-card:hover { border-color: rgba(255,255,255,0.3); background: rgba(0,0,0,0.6); }
+  .diff-card.active { border-color: var(--cyan); background: rgba(0,245,255,0.1); }
+
+  .diff-info { display: flex; flex-direction: column; }
+  .diff-info .name { font-size: 16px; font-weight: 800; letter-spacing: 1px; }
+  .diff-info .stars { font-size: 13px; color: var(--yellow); font-weight: 700; margin-top: 2px; }
+  .diff-info .status { font-size: 11px; margin-top: 4px; }
+  .status-done { color: var(--green); }
+  .status-empty { color: #888; }
+
+  .diff-actions { display: flex; gap: 8px; align-items: center; }
+  .btn-edit {
+    padding: 8px 14px; background: transparent; border: 2px solid var(--cyan); color: var(--cyan);
+    border-radius: 8px; font-family: inherit; font-weight: 700; font-size: 12px; cursor: pointer; transition: 0.15s;
+  }
+  .btn-edit:hover { background: rgba(0,245,255,0.15); }
+
+  /* TOMBOL PLAY */
+  .big-play-btn {
+    display: block; width: 100%; padding: 16px; margin-top: 14px;
+    background: linear-gradient(90deg, var(--accent), #ff3d8a);
+    border: none; border-radius: 12px; color: #fff; font-family: inherit;
+    font-size: 18px; font-weight: 900; letter-spacing: 3px; cursor: pointer;
+    transition: 0.2s; box-shadow: 0 10px 30px rgba(255,0,110,0.4);
+    flex-shrink: 0;
+  }
+  .big-play-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 15px 40px rgba(255,0,110,0.6); }
+  .big-play-btn:active:not(:disabled) { transform: translateY(0); }
+  .big-play-btn:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; }
+
+  .delete-btn-big {
+    position: absolute; top: 16px; right: 16px; z-index: 10;
+    background: rgba(0,0,0,0.5); border: 2px solid var(--border); color: var(--text);
+    padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer;
+    transition: 0.15s;
+  }
+  .delete-btn-big:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* HUD */
+  #hud { position: fixed; top: 0; left: 0; right: 0; pointer-events: none; z-index: 50; padding: 16px 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+  #hud-left { font-size: 13px; line-height: 1.7; }
+  #hud-left b { color: var(--accent); font-size: 16px; }
+  #hud-right { text-align: right; font-size: 13px; line-height: 1.7; }
+  #hud-right b { color: var(--cyan); font-size: 16px; }
+  #hud .combo { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); font-size: 80px; font-weight: 900; color: var(--yellow); opacity: 0; text-shadow: 0 0 30px var(--yellow); pointer-events: none; }
+  #hud .combo.show { animation: comboPop 0.5s; }
+  @keyframes comboPop { 0% { opacity: 0; transform: translate(-50%,-50%) scale(0.5); } 50% { opacity: 1; transform: translate(-50%,-50%) scale(1.1); } 100% { opacity: 0; transform: translate(-50%,-50%) scale(1.3); } }
+
+  #progress { position: fixed; top: 0; left: 0; height: 4px; background: var(--accent); width: 0%; z-index: 60; box-shadow: 0 0 10px var(--accent); transition: width 0.1s linear; }
+  #judgment { position: fixed; top: 35%; left: 50%; transform: translateX(-50%); font-size: 36px; font-weight: 900; pointer-events: none; z-index: 70; opacity: 0; text-shadow: 0 0 20px currentColor; }
+  #judgment.show { animation: judgPop 0.6s; }
+  @keyframes judgPop { 0% { opacity: 0; transform: translateX(-50%) scale(1.5); } 30% { opacity: 1; transform: translateX(-50%) scale(1); } 100% { opacity: 0; transform: translateX(-50%) scale(0.9); } }
+  #song-title { position: fixed; bottom: 16px; left: 24px; font-size: 12px; opacity: 0.5; z-index: 50; pointer-events: none; }
+
+  /* EDITOR */
+  #editor-ui { position: fixed; top: 0; left: 0; right: 0; z-index: 80; pointer-events: none; padding: 12px 20px; display: flex; justify-content: space-between; background: linear-gradient(to bottom, rgba(10,10,26,0.95), transparent); }
+  #editor-ui > * { pointer-events: auto; }
+  .editor-btns { display: flex; gap: 8px; }
+  .editor-btn { padding: 8px 14px; background: var(--panel-bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text); cursor: pointer; font-family: inherit; font-size: 13px; font-weight: 700; }
+  .editor-btn:hover { border-color: var(--cyan); }
+  .editor-btn.rec { background: var(--accent); border-color: var(--accent); color: #fff; animation: pulse 1s infinite; }
+  @keyframes pulse { 50% { opacity: 0.6; } }
+  .editor-timeline { position: fixed; bottom: 0; left: 0; right: 0; height: 60px; background: rgba(10,10,26,0.95); border-top: 2px solid var(--border); z-index: 80; overflow: hidden; }
+  .editor-note-mark { position: absolute; top: 50%; width: 4px; height: 20px; background: var(--cyan); transform: translate(-50%,-50%); border-radius: 2px; }
+  .editor-timeline-info { position: absolute; top: 4px; left: 12px; font-size: 11px; opacity: 0.7; }
+
+  /* MODALS */
+  .modal-panel { background: var(--panel-bg); border: 2px solid var(--border); border-radius: 16px; padding: 28px 32px; max-width: 480px; width: 100%; text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,0.8); }
+  h2 { font-size: 20px; margin-bottom: 16px; color: var(--cyan); }
+  .btn { display: block; width: 100%; padding: 14px; margin-top: 10px; background: var(--panel-bg); border: 2px solid var(--border); border-radius: 10px; color: var(--text); font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer; transition: 0.15s; text-align: center; }
+  .btn:hover { border-color: var(--accent); background: var(--hover); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.primary:hover { background: #ff3d8a; }
+  .btn.danger { border-color: var(--accent); color: var(--accent); }
+  .btn.danger:hover { background: rgba(255,0,110,0.15); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 0; }
+  .stat-box { background: rgba(0,0,0,0.3); border-radius: 10px; padding: 12px; text-align: center; }
+  .stat-box .label { font-size: 11px; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+  .stat-box .value { font-size: 22px; font-weight: 800; color: var(--cyan); margin-top: 4px; }
+  .rank-big { font-size: 96px; font-weight: 900; text-align: center; line-height: 1; text-shadow: 0 0 40px currentColor; margin: 10px 0; }
+  .rank-S { color: var(--yellow); }
+  .rank-A { color: var(--green); }
+  .rank-B { color: var(--cyan); }
+  .rank-C { color: var(--purple); }
+  .rank-D { color: var(--accent); }
+
+  /* RESPONSIVE — LAYAR KECIL */
+  @media (max-height: 750px) {
+    .select-container { height: 90vh; }
+    .detail-content { padding: 18px 22px; }
+    .detail-header h1 { font-size: 26px; }
+    .detail-header { margin-bottom: 12px; }
+    .diff-card { padding: 12px 16px; }
+    .diff-info .name { font-size: 15px; }
+    .big-play-btn { padding: 14px; font-size: 16px; margin-top: 10px; }
+    .spinner-header { padding: 14px 20px; }
+  }
+  @media (max-height: 600px) {
+    .detail-header h1 { font-size: 22px; }
+    .detail-header .meta { font-size: 11px; gap: 10px; }
+    .diff-info .name { font-size: 14px; }
+    .diff-info .stars { font-size: 12px; }
+    .diff-card { padding: 10px 14px; }
+    .big-play-btn { padding: 12px; font-size: 15px; letter-spacing: 2px; }
+    .btn-edit { padding: 6px 10px; font-size: 11px; }
+    .delete-btn-big { padding: 5px 10px; font-size: 11px; }
+  }
+  @media (max-width: 800px) {
+    .select-container { flex-direction: column; height: 92vh; }
+    .spinner-panel { width: 100%; height: 45%; border-right: none; border-bottom: 2px solid var(--border); }
+    .detail-panel { width: 100%; height: 55%; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="progress"></div>
+
+<div id="hud" style="display:none;">
+  <div id="hud-left">Score: <b id="hud-score">0</b><br>Acc: <b id="hud-acc">100%</b></div>
+  <div id="hud-right">Combo: <b id="hud-combo">0</b><br><span id="hud-diff" style="font-size:11px;opacity:0.6;"></span></div>
+  <div class="combo" id="combo-popup"></div>
+</div>
+
+<div id="judgment"></div>
+<div id="song-title" style="display:none;"></div>
+
+<div class="overlay" id="main-menu">
+  <div class="select-container">
+    <div class="spinner-panel">
+      <div class="spinner-header">
+        <h2>🎵 LIBRARY</h2>
+        <label class="upload-btn-small" for="file-upload">➕ UPLOAD</label>
+        <input type="file" id="file-upload" accept="audio/*">
+      </div>
+      <div class="spinner-viewport" id="spinner-viewport">
+        <div class="spinner-inner" id="spinner-inner"></div>
+      </div>
+      <div class="spinner-marker"></div>
+    </div>
+
+    <div class="detail-panel">
+      <div class="detail-bg" id="detail-bg"></div>
+      <div class="detail-content" id="detail-content" style="display:none;">
+        <button class="delete-btn-big" id="btn-delete-song">🗑️ Hapus</button>
+        <div class="detail-header">
+          <h1 id="detail-title">Judul Lagu</h1>
+          <div class="meta">
+            <span>⏱️ <span id="detail-duration">0:00</span></span>
+            <span>💾 <span id="detail-size">0 MB</span></span>
+            <span>🎵 <span id="detail-bpm">120 BPM</span></span>
+          </div>
+        </div>
+        <div class="diff-list" id="diff-list"></div>
+        <button class="big-play-btn" id="btn-play-selected" disabled>▶ PLAY</button>
+      </div>
+      <div class="song-detail-empty" id="detail-empty" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; opacity:0.4;">
+        <div style="font-size:60px; margin-bottom:16px;">🎧</div>
+        <div style="font-size:16px; font-weight:700;">Library Kosong</div>
+        <div style="font-size:13px; margin-top:8px;">Upload lagu buat mulai bikin chart!</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="editor-ui" style="display:none;">
+  <div style="display:flex; align-items:center; gap:14px;">
+    <div style="font-size:13px; font-weight:700; color:var(--cyan);">🛠️ EDITOR MODE</div>
+    <div id="editor-song-name" style="font-size:12px; opacity:0.7;"></div>
+    <div style="font-size:11px; opacity:0.5; margin-left:10px;">(Klik mouse / Z / X = Taruh Note)</div>
+  </div>
+  <div class="editor-btns">
+    <button class="editor-btn" id="btn-rec-toggle">● REC (SPACE)</button>
+    <button class="editor-btn" id="btn-undo-last">↶ Undo</button>
+    <button class="editor-btn" id="btn-save-exit">💾 Simpan & Keluar</button>
+  </div>
+</div>
+<div class="editor-timeline" id="editor-timeline" style="display:none;">
+  <div class="editor-timeline-info" id="editor-timeline-info"></div>
+</div>
+
+<div class="overlay hidden" id="pause-overlay">
+  <div class="modal-panel">
+    <h2>⏸️ Paused</h2>
+    <button class="btn primary" id="btn-resume">▶️ Lanjut</button>
+    <button class="btn" id="btn-restart">🔄 Ulang</button>
+    <button class="btn danger" id="btn-quit">🚪 Keluar ke Menu</button>
+  </div>
+</div>
+
+<div class="overlay hidden" id="result-overlay">
+  <div class="modal-panel">
+    <div class="rank-big" id="result-rank">S</div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="label">Score</div><div class="value" id="result-score">0</div></div>
+      <div class="stat-box"><div class="label">Accuracy</div><div class="value" id="result-acc">100%</div></div>
+      <div class="stat-box"><div class="label">Max Combo</div><div class="value" id="result-combo">0</div></div>
+      <div class="stat-box"><div class="label">Judgment</div><div class="value" style="font-size:13px;" id="result-judg">300 / 0 / 0</div></div>
+    </div>
+    <button class="btn primary" id="btn-result-retry">🔄 Main Lagi</button>
+    <button class="btn" id="btn-result-menu">🏠 Balik ke Menu</button>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   DATABASE
+   ========================================================= */
+const DB_NAME = 'neon_tap_db';
+const DB_VERSION = 1;
+let db;
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const d = e.target.result;
+      if (!d.objectStoreNames.contains('songs')) d.createObjectStore('songs', { keyPath: 'id' });
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(db); };
+    req.onerror = e => reject(e);
+  });
+}
+function dbGet(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const r = tx.objectStore(store).get(key);
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function dbPut(store, val) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const r = tx.objectStore(store).put(val);
+    r.onsuccess = () => res();
+    r.onerror = () => rej(r.error);
+  });
+}
+function dbGetAll(store) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readonly');
+    const r = tx.objectStore(store).getAll();
+    r.onsuccess = () => res(r.result);
+    r.onerror = () => rej(r.error);
+  });
+}
+function dbDelete(store, key) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction(store, 'readwrite');
+    const r = tx.objectStore(store).delete(key);
+    r.onsuccess = () => res();
+    r.onerror = () => rej(r.error);
+  });
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const state = {
+  songs: [],
+  selectedSongId: null,
+  selectedDiff: 'normal',
+  editingSongId: null,
+  editingDiff: 'normal',
+  mode: 'menu',
+  audioCtx: null,
+  audioBuffer: null,
+  audioSource: null,
+  audioStartTime: 0,
+  audioPausedAt: 0,
+  playing: false,
+  paused: false,
+  notes: [],
+  chartLength: 0,
+  score: 0,
+  combo: 0,
+  maxCombo: 0,
+  perfect: 0, good: 0, miss: 0,
+  mouseX: 0, mouseY: 0,
+  keyZ: false, keyX: false,
+  trail: [],
+  editorRecording: false,
+  editorNotes: [],
+  lastPlaceTime: 0,
+  previewTimeout: null,
+  previewSource: null,
+  previewStart: 0,
+};
+
+const JUDGMENT = { PERFECT: 50, GOOD: 120 };
+const NOTE_RADIUS = 38;
+const APPROACH_TIME = 1200;
+const RATING = { easy: 3.0, normal: 5.5, hard: 9.8 };
+const EDITOR_PLACE_COOLDOWN = 100;
+
+/* =========================================================
+   AUDIO
+   ========================================================= */
+function playHitSound(perfect) {
+  if (!state.audioCtx) return;
+  const ctx = state.audioCtx;
+  const now = ctx.currentTime;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(perfect ? 880 : 660, now);
+  osc.frequency.exponentialRampToValueAtTime(perfect ? 1320 : 880, now + 0.08);
+  gain.gain.setValueAtTime(0.15, now);
+  gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+  osc.connect(gain).connect(ctx.destination);
+  osc.start(now); osc.stop(now + 0.15);
+}
+async function loadAudioBuffer(arrayBuffer) {
+  if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  return await state.audioCtx.decodeAudioData(arrayBuffer);
+}
+function playAudioBuffer(buffer, startOffset = 0) {
+  stopAudio();
+  const src = state.audioCtx.createBufferSource();
+  src.buffer = buffer;
+  src.connect(state.audioCtx.destination);
+  const startAt = state.audioCtx.currentTime;
+  src.start(startAt, startOffset);
+  state.audioSource = src;
+  state.audioStartTime = startAt - startOffset;
+  state.playing = true;
+}
+function stopAudio() {
+  if (state.audioSource) {
+    try { state.audioSource.stop(); } catch(e) {}
+    state.audioSource = null;
+  }
+  state.playing = false;
+}
+function getCurrentTime() {
+  if (!state.playing || !state.audioCtx) return 0;
+  return state.audioCtx.currentTime - state.audioStartTime;
+}
+
+function playPreview(buffer, duration) {
+  stopPreview();
+  if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (state.audioCtx.state === 'suspended') state.audioCtx.resume();
+  
+  const src = state.audioCtx.createBufferSource();
+  src.buffer = buffer;
+  const startOffset = Math.max(0, (buffer.duration / 2) - 5);
+  const playDur = Math.min(10, buffer.duration - startOffset);
+  
+  src.connect(state.audioCtx.destination);
+  src.start(0, startOffset, playDur);
+  state.previewSource = src;
+  state.previewStart = performance.now();
+  
+  const gain = state.audioCtx.createGain();
+  const t = state.audioCtx.currentTime;
+  gain.gain.setValueAtTime(0.4, t);
+  gain.gain.setValueAtTime(0.4, t + playDur - 0.5);
+  gain.gain.linearRampToValueAtTime(0, t + playDur);
+  src.disconnect();
+  src.connect(gain).connect(state.audioCtx.destination);
+  
+  clearTimeout(state.previewTimeout);
+  state.previewTimeout = setTimeout(() => stopPreview(), playDur * 1000);
+}
+function stopPreview() {
+  if (state.previewSource) {
+    try { state.previewSource.stop(); } catch(e) {}
+    state.previewSource = null;
+  }
+  clearTimeout(state.previewTimeout);
+}
+
+/* =========================================================
+   CANVAS
+   ========================================================= */
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+let W, H;
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+window.addEventListener('resize', resize);
+resize();
+
+const NOTE_COLORS = ['#ff006e', '#00f5ff', '#ffd60a', '#06ffa5', '#9d4edd', '#ff8800', '#ff00ff'];
+function pickColor(i) { return NOTE_COLORS[i % NOTE_COLORS.length]; }
+
+function render() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.strokeStyle = 'rgba(0,245,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  const now = performance.now();
+  state.trail.push({ x: state.mouseX, y: state.mouseY, t: now });
+  state.trail = state.trail.filter(p => now - p.t < 250);
+  state.trail.forEach(p => {
+    const alpha = 1 - (now - p.t) / 250;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, 4 + alpha * 6, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(0,245,255,${alpha * 0.4})`;
+    ctx.fill();
+  });
+
+  const currentTime = state.playing ? getCurrentTime() : 0;
+
+  if (state.mode === 'play' || state.mode === 'editor') {
+    const notes = state.mode === 'editor' ? state.editorNotes : state.notes;
+    for (const n of notes) {
+      if (state.mode === 'play' && n.judged) continue;
+      const timeUntil = n.time - currentTime * 1000;
+      if (state.mode === 'play' && (timeUntil > APPROACH_TIME || timeUntil < -200)) continue;
+      if (state.mode === 'editor' && (timeUntil > APPROACH_TIME + 500 || timeUntil < -1000)) continue;
+
+      const approach = Math.max(0, Math.min(1, timeUntil / APPROACH_TIME));
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NOTE_RADIUS + approach * 80, 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(255,255,255,${0.15 + approach * 0.5})`;
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      const color = n.color || pickColor(0);
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NOTE_RADIUS, 0, Math.PI * 2);
+      ctx.fillStyle = color + 'cc';
+      ctx.fill();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      ctx.beginPath();
+      ctx.arc(n.x, n.y, NOTE_RADIUS - 10, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(0,0,0,0.4)';
+      ctx.fill();
+
+      if (timeUntil < 300 && timeUntil > -100) {
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, 8 + (1 - approach) * 4, 0, Math.PI * 2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+    }
+
+    ctx.shadowColor = '#00f5ff';
+    ctx.shadowBlur = 15;
+    ctx.beginPath(); ctx.arc(state.mouseX, state.mouseY, 8, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.beginPath(); ctx.arc(state.mouseX, state.mouseY, 14, 0, Math.PI * 2); ctx.strokeStyle = '#00f5ff'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.shadowBlur = 0;
+  }
+
+  if (state.mode === 'play') {
+    document.getElementById('hud-score').textContent = state.score.toLocaleString();
+    const total = state.perfect + state.good + state.miss;
+    const acc = total > 0 ? ((state.perfect + state.good * 0.5) / total * 100) : 100;
+    document.getElementById('hud-acc').textContent = acc.toFixed(2) + '%';
+    document.getElementById('hud-combo').textContent = state.combo;
+    document.getElementById('progress').style.width = (state.chartLength > 0 ? Math.min(100, (currentTime / state.chartLength) * 100) : 0) + '%';
+  }
+
+  if (state.mode === 'editor') drawEditorTimeline(currentTime);
+  if (state.mode === 'play' && state.playing && currentTime >= state.chartLength + 0.5) endGame();
+
+  requestAnimationFrame(render);
+}
+
+function drawEditorTimeline(currentTime) {
+  const tl = document.getElementById('editor-timeline');
+  const info = document.getElementById('editor-timeline-info');
+  tl.querySelectorAll('.editor-note-mark, .playhead').forEach(el => el.remove());
+  const dur = state.chartLength || 1;
+  info.textContent = `${currentTime.toFixed(2)}s / ${dur.toFixed(2)}s — Notes: ${state.editorNotes.length}`;
+  for (const n of state.editorNotes) {
+    const mark = document.createElement('div');
+    mark.className = 'editor-note-mark';
+    mark.style.left = (n.time / 1000 / dur * 100) + '%';
+    mark.style.background = n.color || '#00f5ff';
+    tl.appendChild(mark);
+  }
+  const playhead = document.createElement('div');
+  playhead.className = 'playhead';
+  playhead.style.cssText = `position:absolute;top:0;bottom:0;width:2px;background:#fff;left:${(currentTime / dur * 100)}%;z-index:2;`;
+  tl.appendChild(playhead);
+}
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+canvas.addEventListener('mousemove', e => { state.mouseX = e.clientX; state.mouseY = e.clientY; });
+canvas.addEventListener('mousedown', e => { if (e.button === 0) handlePrimaryInput(); });
+
+function handlePrimaryInput() {
+  if (state.mode === 'play') tryHit();
+  else if (state.mode === 'editor' && state.editorRecording) placeEditorNote();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.repeat) return;
+  if (e.key === 'z' || e.key === 'Z') { if (!state.keyZ) { state.keyZ = true; handlePrimaryInput(); } }
+  if (e.key === 'x' || e.key === 'X') { if (!state.keyX) { state.keyX = true; handlePrimaryInput(); } }
+  if (e.code === 'Space') { e.preventDefault(); if (state.mode === 'editor') toggleEditorRec(); }
+  if (e.key === 'Escape') { if (state.mode === 'play' && !state.paused) pauseGame(); else if (state.mode === 'play' && state.paused) resumeGame(); }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'z' || e.key === 'Z') state.keyZ = false;
+  if (e.key === 'x' || e.key === 'X') state.keyX = false;
+});
+
+/* =========================================================
+   GAMEPLAY
+   ========================================================= */
+function tryHit() {
+  if (state.mode !== 'play' || state.paused) return;
+  const currentTime = getCurrentTime() * 1000;
+  let closest = null, closestDt = Infinity;
+  for (const n of state.notes) {
+    if (n.judged) continue;
+    const dt = Math.abs(n.time - currentTime);
+    if (dt > JUDGMENT.GOOD) continue;
+    const dist = Math.hypot(n.x - state.mouseX, n.y - state.mouseY);
+    if (dist > NOTE_RADIUS * 2) continue;
+    if (dt < closestDt) { closestDt = dt; closest = n; }
+  }
+  if (!closest) return;
+  closest.judged = true;
+  let judg, gain;
+  if (closestDt <= JUDGMENT.PERFECT) { judg = 'PERFECT'; gain = 300; state.perfect++; }
+  else { judg = 'GOOD'; gain = 100; state.good++; }
+  state.combo++;
+  if (state.combo > state.maxCombo) state.maxCombo = state.combo;
+  state.score += gain * (1 + Math.floor(state.combo / 10) * 0.1);
+  playHitSound(judg === 'PERFECT');
+  showJudgment(judg);
+  if (state.combo >= 5) {
+    const el = document.getElementById('combo-popup');
+    el.textContent = state.combo + 'x';
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+  }
+}
+
+function showJudgment(text) {
+  const el = document.getElementById('judgment');
+  el.textContent = text;
+  el.style.color = text === 'PERFECT' ? '#ffd60a' : '#06ffa5';
+  el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+}
+
+async function startPlay(songId, diff) {
+  stopPreview();
+  const song = await dbGet('songs', songId);
+  if (!song) return;
+  const chart = song.charts && song.charts[diff];
+  if (!chart || !chart.notes || !chart.notes.length) return;
+
+  state.audioBuffer = await loadAudioBuffer(song.audioBuffer);
+  state.chartLength = chart.duration;
+  state.notes = chart.notes.map(n => ({ ...n, judged: false }));
+  state.score = 0; state.combo = 0; state.maxCombo = 0;
+  state.perfect = 0; state.good = 0; state.miss = 0;
+  state.mode = 'play';
+  state.paused = false;
+  state.selectedSongId = songId;
+  state.selectedDiff = diff;
+
+  document.getElementById('main-menu').classList.add('hidden');
+  document.getElementById('hud').style.display = 'flex';
+  document.getElementById('song-title').style.display = 'block';
+  document.getElementById('song-title').textContent = `${song.title} — ${diff.toUpperCase()} (${RATING[diff].toFixed(1)}⭐)`;
+  document.getElementById('hud-diff').textContent = RATING[diff].toFixed(1) + '⭐';
+
+  setTimeout(() => {
+    if (state.mode !== 'play') return;
+    playAudioBuffer(state.audioBuffer, 0);
+  }, 800);
+}
+
+function endGame() {
+  if (state.mode !== 'play') return;
+  state.mode = 'result';
+  stopAudio();
+  for (const n of state.notes) {
+    if (!n.judged) { n.judged = true; state.miss++; state.combo = 0; }
+  }
+  const total = state.perfect + state.good + state.miss;
+  const acc = total > 0 ? ((state.perfect + state.good * 0.5) / total * 100) : 0;
+  let rank = 'D';
+  if (acc >= 95) rank = 'S'; else if (acc >= 90) rank = 'A'; else if (acc >= 80) rank = 'B'; else if (acc >= 65) rank = 'C';
+
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('song-title').style.display = 'none';
+  document.getElementById('result-rank').textContent = rank;
+  document.getElementById('result-rank').className = 'rank-big rank-' + rank;
+  document.getElementById('result-score').textContent = Math.floor(state.score).toLocaleString();
+  document.getElementById('result-acc').textContent = acc.toFixed(2) + '%';
+  document.getElementById('result-combo').textContent = state.maxCombo;
+  document.getElementById('result-judg').textContent = `${state.perfect} / ${state.good} / ${state.miss}`;
+  document.getElementById('result-overlay').classList.remove('hidden');
+}
+
+function pauseGame() {
+  if (state.mode !== 'play') return;
+  state.paused = true;
+  state.audioPausedAt = getCurrentTime();
+  stopAudio();
+  document.getElementById('pause-overlay').classList.remove('hidden');
+}
+function resumeGame() {
+  if (state.mode !== 'play') return;
+  state.paused = false;
+  playAudioBuffer(state.audioBuffer, state.audioPausedAt);
+  document.getElementById('pause-overlay').classList.add('hidden');
+}
+function quitToMenu() {
+  stopAudio();
+  state.mode = 'menu';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('song-title').style.display = 'none';
+  document.getElementById('pause-overlay').classList.add('hidden');
+  document.getElementById('result-overlay').classList.add('hidden');
+  document.getElementById('progress').style.width = '0%';
+  document.getElementById('main-menu').classList.remove('hidden');
+  if (state.selectedSongId) {
+    const song = state.songs.find(s => s.id === state.selectedSongId);
+    if (song) previewSong(song);
+  }
+}
+
+/* =========================================================
+   EDITOR
+   ========================================================= */
+async function startEditor(songId, diff) {
+  stopPreview();
+  const song = await dbGet('songs', songId);
+  if (!song) return;
+
+  state.editingSongId = songId;
+  state.editingDiff = diff;
+  state.audioBuffer = await loadAudioBuffer(song.audioBuffer);
+  state.chartLength = song.duration || state.audioBuffer.duration;
+  const existingChart = song.charts && song.charts[diff];
+  state.editorNotes = existingChart ? existingChart.notes.map(n => ({ ...n })) : [];
+  state.editorNotes.sort((a, b) => a.time - b.time);
+  state.editorRecording = true;
+  state.lastPlaceTime = 0;
+  state.mode = 'editor';
+
+  document.getElementById('main-menu').classList.add('hidden');
+  document.getElementById('editor-ui').style.display = 'flex';
+  document.getElementById('editor-timeline').style.display = 'block';
+  document.getElementById('editor-song-name').textContent = `${song.title} — ${diff.toUpperCase()}`;
+  const btn = document.getElementById('btn-rec-toggle');
+  btn.classList.add('rec');
+  btn.textContent = '● REC ON (SPACE)';
+
+  playAudioBuffer(state.audioBuffer, 0);
+}
+
+function placeEditorNote() {
+  if (state.mode !== 'editor' || !state.editorRecording) return;
+  const t = getCurrentTime() * 1000;
+  if (t - state.lastPlaceTime < EDITOR_PLACE_COOLDOWN) return;
+  state.lastPlaceTime = t;
+
+  const tooClose = state.editorNotes.some(n => {
+    const dist = Math.hypot(n.x - state.mouseX, n.y - state.mouseY);
+    return dist < NOTE_RADIUS * 1.8 && Math.abs(n.time - t) < 150;
+  });
+  if (tooClose) return;
+
+  state.editorNotes.push({ time: t, x: state.mouseX, y: state.mouseY, color: pickColor(state.editorNotes.length) });
+  state.editorNotes.sort((a, b) => a.time - b.time);
+}
+
+function toggleEditorRec() {
+  if (state.mode !== 'editor') return;
+  state.editorRecording = !state.editorRecording;
+  const btn = document.getElementById('btn-rec-toggle');
+  btn.classList.toggle('rec', state.editorRecording);
+  btn.textContent = state.editorRecording ? '● REC ON (SPACE)' : '● REC (SPACE)';
+}
+
+function undoLastNote() {
+  if (state.mode !== 'editor' || !state.editorNotes.length) return;
+  const t = getCurrentTime() * 1000;
+  let idx = 0, dt = Infinity;
+  state.editorNotes.forEach((n, i) => { if (Math.abs(n.time - t) < dt) { dt = Math.abs(n.time - t); idx = i; } });
+  state.editorNotes.splice(idx, 1);
+}
+
+async function saveEditorChart() {
+  if (!state.editingSongId) return;
+  const song = await dbGet('songs', state.editingSongId);
+  if (!song) return;
+  if (!song.charts) song.charts = {};
+  song.charts[state.editingDiff] = {
+    notes: state.editorNotes.map(n => ({ time: Math.round(n.time), x: Math.round(n.x), y: Math.round(n.y), color: n.color })),
+    duration: state.chartLength,
+    rating: RATING[state.editingDiff],
+  };
+  await dbPut('songs', song);
+  stopAudio();
+  state.mode = 'menu';
+  document.getElementById('editor-ui').style.display = 'none';
+  document.getElementById('editor-timeline').style.display = 'none';
+  document.getElementById('main-menu').classList.remove('hidden');
+  renderSongList();
+  alert(`Chart ${state.editingDiff.toUpperCase()} tersimpan! (${state.editorNotes.length} notes)`);
+}
+
+/* =========================================================
+   SONG SELECTION
+   ========================================================= */
+async function renderSongList() {
+  state.songs = await dbGetAll('songs');
+  const inner = document.getElementById('spinner-inner');
+  
+  if (state.songs.length === 0) {
+    inner.innerHTML = '<div style="text-align:center; padding:40px; opacity:0.5;">Belum ada lagu.<br>Upload dulu!</div>';
+    document.getElementById('detail-empty').style.display = 'flex';
+    document.getElementById('detail-content').style.display = 'none';
+    return;
+  }
+
+  if (!state.selectedSongId || !state.songs.find(s => s.id === state.selectedSongId)) {
+    state.selectedSongId = state.songs[0].id;
+  }
+
+  inner.innerHTML = '';
+  state.songs.forEach((song, idx) => {
+    const item = document.createElement('div');
+    item.className = 'song-item' + (state.selectedSongId === song.id ? ' selected' : '');
+    item.dataset.songId = song.id;
+    item.dataset.index = idx;
+    const dur = song.duration || 0;
+    const min = Math.floor(dur / 60);
+    const sec = Math.floor(dur % 60).toString().padStart(2, '0');
+    item.innerHTML = `
+      <div class="title">${song.title}</div>
+      <div class="duration">${min}:${sec}</div>
+    `;
+    item.onclick = () => {
+      selectSong(song.id);
+      item.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+    inner.appendChild(item);
+  });
+
+  setTimeout(() => {
+    const selectedEl = inner.querySelector('.song-item.selected');
+    if (selectedEl) selectedEl.scrollIntoView({ block: 'center' });
+  }, 50);
+
+  updateDetail();
+  setupScrollListener();
+}
+
+let scrollDebounce;
+function setupScrollListener() {
+  const viewport = document.getElementById('spinner-viewport');
+  viewport.onscroll = () => {
+    clearTimeout(scrollDebounce);
+    scrollDebounce = setTimeout(checkSelectedByScroll, 80);
+  };
+}
+
+function checkSelectedByScroll() {
+  const viewport = document.getElementById('spinner-viewport');
+  const items = document.querySelectorAll('.song-item');
+  if (!items.length) return;
+  
+  const viewportRect = viewport.getBoundingClientRect();
+  const centerY = viewportRect.top + viewportRect.height / 2;
+  
+  let closest = null, closestDist = Infinity;
+  items.forEach(item => {
+    const rect = item.getBoundingClientRect();
+    const itemCenter = rect.top + rect.height / 2;
+    const dist = Math.abs(itemCenter - centerY);
+    if (dist < closestDist) {
+      closestDist = dist;
+      closest = item;
+    }
+  });
+  
+  if (closest && closest.dataset.songId !== state.selectedSongId) {
+    selectSong(closest.dataset.songId);
+  }
+}
+
+async function selectSong(songId) {
+  state.selectedSongId = songId;
+  document.querySelectorAll('.song-item').forEach(el => {
+    el.classList.toggle('selected', el.dataset.songId === songId);
+  });
+  updateDetail();
+  const song = state.songs.find(s => s.id === songId);
+  if (song) previewSong(song);
+}
+
+async function previewSong(song) {
+  if (!song.audioBuffer) return;
+  try {
+    const buffer = await loadAudioBuffer(song.audioBuffer.slice(0));
+    playPreview(buffer, buffer.duration);
+  } catch(e) {
+    console.warn('Preview failed', e);
+  }
+}
+
+function updateDetail() {
+  const song = state.songs.find(s => s.id === state.selectedSongId);
+  const emptyEl = document.getElementById('detail-empty');
+  const contentEl = document.getElementById('detail-content');
+
+  if (!song) {
+    emptyEl.style.display = 'flex';
+    contentEl.style.display = 'none';
+    return;
+  }
+
+  emptyEl.style.display = 'none';
+  contentEl.style.display = 'flex';
+  
+  document.getElementById('detail-title').textContent = song.title;
+  const dur = song.duration || 0;
+  document.getElementById('detail-duration').textContent = `${Math.floor(dur/60)}:${Math.floor(dur%60).toString().padStart(2,'0')}`;
+  document.getElementById('detail-size').textContent = `${(song.audioBuffer.byteLength / 1024 / 1024).toFixed(1)} MB`;
+  
+  const fakeBPM = 100 + (song.title.length * 7) % 80;
+  document.getElementById('detail-bpm').textContent = `${fakeBPM} BPM`;
+  
+  const hue = (song.title.length * 37) % 360;
+  document.getElementById('detail-bg').style.background = 
+    `radial-gradient(circle at 30% 40%, hsl(${hue}, 70%, 40%), transparent 60%),
+     radial-gradient(circle at 70% 70%, hsl(${(hue+120)%360}, 70%, 40%), transparent 60%)`;
+
+  const diffList = document.getElementById('diff-list');
+  diffList.innerHTML = '';
+  
+  ['easy', 'normal', 'hard'].forEach(diff => {
+    const chart = song.charts && song.charts[diff];
+    const hasChart = chart && chart.notes && chart.notes.length > 0;
+    const card = document.createElement('div');
+    card.className = 'diff-card ' + diff + (state.selectedDiff === diff ? ' active' : '');
+    
+    card.innerHTML = `
+      <div class="diff-info">
+        <div class="name">${diff.toUpperCase()}</div>
+        <div class="stars">${'★'.repeat(Math.min(5, Math.ceil(RATING[diff] / 2)))} ${RATING[diff].toFixed(1)}</div>
+        <div class="status ${hasChart ? 'status-done' : 'status-empty'}">
+          ${hasChart ? `✓ ${chart.notes.length} notes` : '✗ Belum ada chart'}
+        </div>
+      </div>
+      <div class="diff-actions">
+        <button class="btn-edit" data-action="edit" data-diff="${diff}">🛠️ Edit</button>
+      </div>
+    `;
+    card.onclick = (e) => {
+      if (e.target.tagName === 'BUTTON') return;
+      state.selectedDiff = diff;
+      updateDetail();
+    };
+    diffList.appendChild(card);
+  });
+  
+  diffList.querySelectorAll('[data-action="edit"]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      startEditor(song.id, btn.dataset.diff);
+    };
+  });
+  
+  const playBtn = document.getElementById('btn-play-selected');
+  const selectedChart = song.charts && song.charts[state.selectedDiff];
+  const hasSelectedChart = selectedChart && selectedChart.notes && selectedChart.notes.length > 0;
+  playBtn.disabled = !hasSelectedChart;
+  playBtn.textContent = hasSelectedChart 
+    ? `▶ PLAY ${state.selectedDiff.toUpperCase()} (${RATING[state.selectedDiff].toFixed(1)}⭐)` 
+    : `✗ CHART BELUM ADA`;
+
+  document.getElementById('btn-delete-song').onclick = async () => {
+    if (!confirm(`Hapus lagu "${song.title}" beserta semua chart-nya?`)) return;
+    await dbDelete('songs', song.id);
+    if (state.selectedSongId === song.id) state.selectedSongId = null;
+    renderSongList();
+  };
+}
+
+/* =========================================================
+   EVENTS
+   ========================================================= */
+document.getElementById('file-upload').onchange = async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const arrayBuffer = await file.arrayBuffer();
+  if (!state.audioCtx) state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  try {
+    const buf = await state.audioCtx.decodeAudioData(arrayBuffer.slice(0));
+    const id = 'song_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+    await dbPut('songs', {
+      id,
+      title: file.name.replace(/\.[^.]+$/, ''),
+      audioBuffer: arrayBuffer,
+      duration: buf.duration,
+      charts: {},
+    });
+    state.selectedSongId = id;
+    await renderSongList();
+  } catch(err) {
+    alert('Gagal decode audio: ' + err.message);
+  }
+  e.target.value = '';
+};
+
+document.getElementById('btn-play-selected').onclick = () => {
+  if (state.selectedSongId) startPlay(state.selectedSongId, state.selectedDiff);
+};
+
+document.getElementById('btn-rec-toggle').onclick = toggleEditorRec;
+document.getElementById('btn-undo-last').onclick = undoLastNote;
+document.getElementById('btn-save-exit').onclick = saveEditorChart;
+document.getElementById('btn-resume').onclick = resumeGame;
+document.getElementById('btn-restart').onclick = () => { 
+  const songId = state.selectedSongId, diff = state.selectedDiff;
+  quitToMenu(); 
+  setTimeout(() => startPlay(songId, diff), 100); 
+};
+document.getElementById('btn-quit').onclick = quitToMenu;
+document.getElementById('btn-result-retry').onclick = () => { 
+  const songId = state.selectedSongId, diff = state.selectedDiff;
+  quitToMenu(); 
+  setTimeout(() => startPlay(songId, diff), 100); 
+};
+document.getElementById('btn-result-menu').onclick = quitToMenu;
+
+/* =========================================================
+   INIT
+   ========================================================= */
+(async () => {
+  await openDB();
+  await renderSongList();
+  requestAnimationFrame(render);
+})();
+</script>
+</body>
+</html>
